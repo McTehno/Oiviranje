@@ -18,103 +18,313 @@ Pipeline oceni tveganje
 Report vrne rezultat
 
 ## Project Structure
+# 🛡️ SQL Injection Analyzer – SPECIFIKACIJA PROJEKTA
 
-```text
-README.md
-app/
-	cli.py
-	config.py
-	main.py
-detectors/
-	base.py
-	injection_detector.py
-examples/
-	scenario1_sql.py
-	scenario2_hql.java
-	scenario3_cmd.java
-models/
-	enums.py
-	finding.py
-	result.py
-parsers/
-	base.py
-	js_parser.py
-	php_parser.py
-	python_parser.py
-pipeline/
-	analyzer.py
-	pipeline.py
-reporting/
-	report.py
-rules/
-	injection_rules.py
-scoring/
-utils/
-```
+---
 
-## Directory Overview
+# 📁 STRUKTURA PROJEKTA
 
-### `app/`
-Application-level entry points and configuration live here.
+sql-injection-analyzer/
+│
+├── app/
+│   ├── main.py
+│   ├── cli.py
+│   └── config.py
+│
+├── parsers/
+│   ├── base.py
+│   ├── python_parser.py
+│   ├── js_parser.py
+│   └── php_parser.py
+│
+├── detectors/
+│   ├── base.py
+│   └── injection_detector.py
+│
+├── models/
+│   ├── finding.py
+│   ├── result.py
+│   └── enums.py
+│
+├── rules/
+│   └── injection_rules.py
+│
+├── reporting/
+│   └── report.py
+│
+├── examples/
+│   ├── scenario1_sql.py
+│   ├── scenario2_hql.java
+│   └── scenario3_cmd.java
+│
+├── README.md
+└── requirements.txt
 
-- `cli.py` is intended for command-line interaction.
-- `config.py` stores application settings and runtime configuration.
-- `main.py` is the main startup module.
+---
 
-### `detectors/`
-This folder contains detector implementations.
+# 🔁 GLAVNI FLOW APLIKACIJE
 
-- `base.py` is the shared detector interface or abstraction.
-- `injection_detector.py` is the detector focused on injection-related findings.
+USER INPUT (koda + jezik)
+        ↓
+app/main.py
+        ↓
+Analyzer (glavni orchestrator)
+        ↓
+Parser (Python / JS / PHP)
+        ↓
+Findings (strukturirani rezultati)
+        ↓
+InjectionDetector (analiza + rules)
+        ↓
+Report (formatiranje izpisa)
+        ↓
+OUTPUT (security report)
 
-### `examples/`
-Sample inputs for testing and demonstration.
+---
 
-- `scenario1_sql.py` represents a SQL-oriented scenario.
-- `scenario2_hql.java` represents a Java/HQL-oriented scenario.
-- `scenario3_cmd.java` represents a command-execution scenario.
+# 📁 APP MODUL
 
-### `models/`
-Data structures used to represent analysis output.
+## main.py
+NAMEN:
+Glavna vstopna točka aplikacije.
 
-- `enums.py` stores shared enumerations.
-- `finding.py` defines the finding model.
-- `result.py` defines the final analysis result model.
+INPUT:
+- koda (string)
+- jezik (python/js/php)
 
-### `parsers/`
-Language-specific parsing logic.
+OUTPUT:
+- security report (string)
 
-- `base.py` defines the parser interface.
-- `js_parser.py` handles JavaScript source.
-- `php_parser.py` handles PHP source.
-- `python_parser.py` handles Python source.
+FUNKCIJA:
+- zažene Analyzer
+- izpiše rezultat
 
-### `pipeline/`
-Core orchestration for analyzing input and moving data through the system.
+---
 
-- `analyzer.py` is the analysis stage.
-- `pipeline.py` coordinates the end-to-end flow.
+## cli.py
+NAMEN:
+CLI vmesnik za zagon iz terminala.
 
-### `reporting/`
-Output formatting and report generation.
+INPUT:
+--file (pot do kode)
+--lang (jezik)
 
-- `report.py` is intended to turn analysis results into a human-readable report.
+OUTPUT:
+- parsed arguments
 
-### `rules/`
-Rule definitions used by detectors and analyzers.
+FUNKCIJA:
+- omogoča zagon programa preko terminala
 
-- `injection_rules.py` contains the rules relevant to injection detection.
+---
 
-### `scoring/`
-Placeholder for scoring or severity-ranking logic.
+## config.py
+NAMEN:
+Globalne nastavitve sistema.
 
-### `utils/`
-Shared helper functions and small reusable utilities.
+VSEBINA:
+- podprti jeziki
+- tipi napadov
 
-## Current State
+---
 
-Several modules in this repository are still empty placeholders. The structure is already in place, but the implementation is not yet complete. This README therefore describes the intended architecture rather than a fully working application flow.
+# 📁 PARSERS (ANALIZA KODE)
 
-## Suggested Next Step
+## base.py
+NAMEN:
+Interface za vse parserje.
 
-When the implementation is added, this README can be expanded with installation instructions, usage examples, and a short explanation of the analysis pipeline.
+FUNKCIJA:
+def parse(code)
+
+OUTPUT:
+list[Finding]
+
+---
+
+## python_parser.py
+NAMEN:
+Analiza Python kode.
+
+DETEKCIJA:
+- string concatenation
+- input()
+- exec/system calls
+
+INPUT:
+Python koda (string)
+
+OUTPUT:
+list Finding
+
+---
+
+## js_parser.py
+NAMEN:
+Analiza JavaScript kode.
+
+DETEKCIJA:
+- "+"
+- req.query / req.body
+- exec()
+
+OUTPUT:
+list Finding
+
+---
+
+## php_parser.py
+NAMEN:
+Analiza PHP kode.
+
+DETEKCIJA:
+- "."
+- $_GET / $_POST
+- exec()
+
+OUTPUT:
+list Finding
+
+---
+
+# 📁 MODELS
+
+## finding.py
+NAMEN:
+Predstavlja en najden problem v kodi.
+
+ATRIBUTI:
+- line (vrstica)
+- type (concat, exec)
+- code (del kode)
+- variables (user input)
+- risk (LOW/HIGH)
+- attack_type (SQL/HQL/CMD)
+
+---
+
+## result.py
+NAMEN:
+Končni rezultat analize.
+
+VSEBINA:
+- findings
+- score
+- risk level
+
+---
+
+## enums.py
+NAMEN:
+Standardizacija vrednosti.
+
+VSEBINA:
+- LOW
+- MEDIUM
+- HIGH
+- CRITICAL
+
+---
+
+# 📁 DETECTORS
+
+## base.py
+NAMEN:
+Interface za vse detectorje.
+
+FUNKCIJA:
+detect(findings)
+
+OUTPUT:
+findings z risk informacijami
+
+---
+
+## injection_detector.py
+NAMEN:
+Glavni security detector.
+
+FUNKCIJA:
+- preverja findings proti rules
+- določi risk
+- določi attack type
+
+INPUT:
+findings iz parserja
+
+OUTPUT:
+obogateni findings
+
+---
+
+# 📁 RULES
+
+## injection_rules.py
+NAMEN:
+Definicija vseh attack scenarijev.
+
+SCENARIJI:
+
+1. SQL Injection
+- SELECT + concat + user input
+
+2. HQL Injection
+- createQuery + concat + input
+
+3. Command Injection
+- exec + concat + input
+
+---
+
+# 📁 REPORTING
+
+## report.py
+NAMEN:
+Formatiranje rezultatov.
+
+INPUT:
+findings
+
+OUTPUT:
+readable security report
+
+PRIMER OUTPUT:
+[HIGH] SQL Injection at line 2
+
+---
+
+# 📁 EXAMPLES
+
+## scenario1_sql.py
+Python SQL Injection:
+query = "SELECT * FROM users WHERE id='" + user + "'"
+
+---
+
+## scenario2_hql.java
+HQL Injection:
+createQuery("FROM users WHERE id='" + input + "'")
+
+---
+
+## scenario3_cmd.java
+Command Injection:
+Runtime.getRuntime().exec(cmd)
+
+---
+
+# 🧠 KAKO SISTEM DELUJE
+
+1. uporabnik vnese kodo
+2. parser najde sumljive vzorce
+3. detector preveri pravila
+4. rules določijo nevarnost
+5. report prikaže rezultat
+
+---
+
+# 🧠 LOGIKA SISTEMA
+
+Parser = kaj obstaja v kodi
+Rules = kaj je nevarno
+Detector = ali je nevarno
+Report = rezultat za uporabnika
