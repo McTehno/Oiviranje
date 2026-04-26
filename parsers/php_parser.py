@@ -1,22 +1,24 @@
-from models.finding import Finding
+from parsers.base import BaseParser
+from models.code_line import CodeLine
 
-class PHPParser:
+
+class PHPParser(BaseParser):
     """
-    PARSER ZA PHP
-
-    Input:
-        PHP koda
-
-    Output:
-        list Finding
+    Parser za PHP kodo.
     """
 
-    def parse(self, code):
-        findings = []
+    def parse(self, code: str):
+        code_lines = []
 
-        # TODO:
-        # - zaznaj "."
-        # - zaznaj $_GET / $_POST
-        # - zaznaj exec()
+        lines = code.splitlines()
 
-        return findings
+        for line_number, line in enumerate(lines, start=1):
+            code_lines.append(
+                CodeLine(
+                    number=line_number,
+                    content=line.strip(),
+                    language="php"
+                )
+            )
+
+        return code_lines

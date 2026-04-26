@@ -1,14 +1,13 @@
-class BaseDetector:
+from abc import ABC, abstractmethod
+
+
+class BaseDetector(ABC):
     """
-    ABSTRACT DETECTOR
-
-    Input:
-        list Finding
-
-    Output:
-        list Finding z risk atributom
+    Skupni interface za vse detectorje.
+        Input: list[CodeLine]
+        Output: list[Finding]
     """
 
-    def detect(self, findings):
-        # TODO
-        pass
+    @abstractmethod
+    def detect(self, code_lines, database="mysql"):
+        raise NotImplementedError("Detector must implement detect()")

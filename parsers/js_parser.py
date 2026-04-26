@@ -1,22 +1,24 @@
-from models.finding import Finding
+from parsers.base import BaseParser
+from models.code_line import CodeLine
 
-class JSParser:
+
+class JSParser(BaseParser):
     """
-    PARSER ZA JAVASCRIPT
-
-    Input:
-        JS koda (string)
-
-    Output:
-        list Finding
+    Parser za JavaScript kodo.
     """
 
-    def parse(self, code):
-        findings = []
+    def parse(self, code: str):
+        code_lines = []
 
-        # TODO:
-        # - zaznaj "+"
-        # - zaznaj req.query / req.body
-        # - zaznaj exec()
+        lines = code.splitlines()
 
-        return findings
+        for line_number, line in enumerate(lines, start=1):
+            code_lines.append(
+                CodeLine(
+                    number=line_number,
+                    content=line.strip(),
+                    language="javascript"
+                )
+            )
+
+        return code_lines

@@ -1,32 +1,50 @@
-from detectors.base import BaseDetector
-from rules.injection_rules import RULES
+from analysis.taint_tracker import TaintTracker
 
-class InjectionDetector(BaseDetector):
-    """
-    DETEKTOR ZA SQL / HQL / COMMAND INJECTION
+from detectors.sql_detector import SQLDetector
+from detectors.hql_detector import HQLDetector
+from detectors.command_detector import CommandDetector
 
-    Input:
-        findings iz parserja
 
-    Output:
-        findings z:
-        - risk (LOW/HIGH/CRITICAL)
-        - attack_type
-    """
+class InjectionDetector:
+    def __init__(self):
+        self.taint_tracker = TaintTracker()
 
-    def detect(self, findings):
+        self.hql_detector = HQLDetector()
+        self.sql_detector = SQLDetector()
+        self.command_detector = CommandDetector()
 
-        for f in findings:
+    def detect(self, code_lines, database="mysql"):
+        findings = []
 
-            for rule in RULES:
+        taint_by_line = self.taint_tracker.track(code_lines)
 
-                # preveri keyword match
-                if any(k in f.code for k in rule["keywords"]):
+        for code_line in code_lines:
+            tainted_variables = taint_by_line.get(code_line.number, set())
 
-                    # preveri concat + user input
-                    if f.type == "concat" and f.variables:
+            hql_finding = self.hql_detector.detect_line(
+                code_line,
+                tainted_variables
+            )
 
-                        f.risk = rule["risk"]
-                        f.attack_type = rule["name"]
+            if hql_finding:
+                findings.append(hql_finding)
+                continue
+
+            sql_finding = self.sql_detector.detect_line(
+                code_line,
+                database,
+                tainted_variables
+            )
+
+            if sql_finding:
+                findings.append(sql_finding)
+
+            command_finding = self.command_detector.detect_line(
+                code_line,
+                tainted_variables
+            )
+
+            if command_finding:
+                findings.append(command_finding)
 
         return findings

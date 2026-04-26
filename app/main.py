@@ -1,23 +1,34 @@
-from pipeline.analyzer import Analyzer
 from app.cli import parse_args
+from pipeline.analyzer import Analyzer
+from reporting.report import generate_report
 
-"""
-ENTRY POINT PROGRAMA
 
-Input:
-    CLI argumenti + datoteka kode
+def read_file(file_path: str):
+    with open(file_path, "r", encoding="utf-8") as file:
+        return file.read()
 
-Output:
-    print rezultat analize
-"""
 
-if __name__ == "__main__":
+def main():
+    #1. klicem cli.py da dobim argumente iz ukazne vrstice (ime datoteke, jezik, baza podatkov)
     args = parse_args()
 
-    with open(args.file, "r") as f:
-        code = f.read()
+    #2.pridobim ime datoteke iz argumentov, in preberem vsebino (kod) datoteke
+    code = read_file(args.file)  
 
-    analyzer = Analyzer()
-    result = analyzer.run(code, args.lang)
+    #3. ustvarim instanco Analyzerja, ki bo vodil celoten proces analize
+    analyzer = Analyzer() 
 
-    print(result)
+    #4.Zaženem analizo s kodo, jezikom in bazo podatkov, ki sem jih dobil iz argumentov iz cli
+    result = analyzer.analyze(
+        code=code,
+        language=args.lang,
+        database=args.db
+    )
+
+    #pridobim poročilo iz rezultata analize in ga izpišem na konzolo
+    report = generate_report(result)
+    print(report)
+
+
+if __name__ == "__main__":
+    main()

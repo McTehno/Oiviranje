@@ -1,28 +1,23 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from models.enums import RiskLevel, AttackType, FindingType
+
 
 @dataclass
 class Finding:
     """
-    REPREZENTIRA EN PROBLEM V KODI
-
-    Input:
-        parser (AST / regex analiza)
-
-    Output:
-        strukturiran objekt za detector
-
-    Attributes:
-        line -> vrstica v kodi
-        type -> tip problema (concat, exec)
-        code -> dejanska koda
-        variables -> user input spremenljivke
+    Predstavlja eno najdeno ranljivost v kodi.
+    Sprememba v logiki ki sem jo naredila je da
+        Finding ustvari detector, ne parser.
     """
 
     line: int
-    type: str
+    type: FindingType
     code: str
-    variables: list
-    language: str
+    variables: list = field(default_factory=list)
+    language: str = "unknown"
 
-    risk: str = "LOW"
-    attack_type: str = "NONE"
+    risk: RiskLevel = RiskLevel.LOW
+    attack_type: AttackType = AttackType.NONE
+
+    description: str = ""
+    recommendation: str = ""
