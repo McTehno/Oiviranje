@@ -1,4 +1,4 @@
-from analysis.taint_tracker import TaintTracker
+from languages.python.taint_tracker import TaintTracker
 
 from detectors.sql_detector import SQLDetector
 from detectors.hql_detector import HQLDetector
