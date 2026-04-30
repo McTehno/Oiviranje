@@ -54,7 +54,9 @@ def contains_command_execution(line: str, language: str):
 
 def contains_tainted_variable(line: str, tainted_variables: set):
     for variable in tainted_variables:
-        pattern = r"\b" + re.escape(variable) + r"\b"
+        # (?<!\w) in (?!\w) delujeta podobno kot \b (word boundary), ampak ustrezno 
+        # podpirata tudi z dolarjem ($) začeta imena spremenljivk (za PHP).
+        pattern = r"(?<!\w)" + re.escape(variable) + r"(?!\w)"
 
         if re.search(pattern, line):
             return True
