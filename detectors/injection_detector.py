@@ -1,11 +1,11 @@
-from languages.python.taint_tracker import TaintTracker as PythonTaintTracker
+from languages.python.taint_tracker import PythonTaintTracker
 from languages.php.taint_tracker import PHPTaintTracker
 from languages.javascript.taint_tracker import JavaScriptTaintTracker
 
 from detectors.sql_detector import SQLDetector
 from detectors.hql_detector import HQLDetector
 from detectors.command_detector import CommandDetector
-
+from detectors.mongodb_detector import MongoDBDetector
 
 class InjectionDetector:
     def __init__(self):
@@ -14,6 +14,7 @@ class InjectionDetector:
         self.hql_detector = HQLDetector()
         self.sql_detector = SQLDetector()
         self.command_detector = CommandDetector()
+        self.mongodb_detector = MongoDBDetector()
 
     def get_taint_tracker(self, language: str):
         """
@@ -27,7 +28,7 @@ class InjectionDetector:
         elif language == "javascript":
             return JavaScriptTaintTracker()
         else:
-            raise ValueError(f"Taint tracker ne podpora jezika: {language}")
+            raise ValueError(f"Taint tracker ne podpira jezika: {language}")
 
     def detect(self, code_lines, database="mysql"):
         findings = []
@@ -54,6 +55,15 @@ class InjectionDetector:
 
             if hql_finding:
                 findings.append(hql_finding)
+                continue
+
+            mongodb_finding = self.mongodb_detector.detect_line(
+                code_line,
+                tainted_variables
+            )
+
+            if mongodb_finding:
+                findings.append(mongodb_finding)
                 continue
 
             sql_finding = self.sql_detector.detect_line(

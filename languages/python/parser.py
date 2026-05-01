@@ -1,4 +1,4 @@
-from parsers.base import BaseParser
+from languages.base_parser import BaseParser
 from models.code_line import CodeLine
 
 

@@ -1,7 +1,8 @@
+from languages.base_parser import BaseParser
 from models.code_line import CodeLine
 
 
-class JavaScriptParser:
+class JavaScriptParser(BaseParser):
     def parse(self, code: str):
         code_lines = []
 

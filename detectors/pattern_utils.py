@@ -5,7 +5,9 @@ from rules.injection_rules import (
     USER_INPUT_PATTERNS,
     CONCAT_PATTERNS,
     ORM_PATTERNS,
-    COMMAND_EXECUTION_PATTERNS
+    COMMAND_EXECUTION_PATTERNS,
+    MONGODB_OPERATION_PATTERNS,
+    MONGODB_OPERATOR_PATTERNS
 )
 
 
@@ -62,3 +64,20 @@ def contains_tainted_variable(line: str, tainted_variables: set):
             return True
 
     return False
+
+
+def contains_mongodb_operation(line: str, language: str):
+    patterns = MONGODB_OPERATION_PATTERNS.get(language, [])
+
+    return any(
+        re.search(pattern, line)
+        for pattern in patterns
+    )
+
+
+def contains_mongodb_operator(line: str):
+    return any(
+        re.search(pattern, line)
+        for pattern in MONGODB_OPERATOR_PATTERNS
+    )
+

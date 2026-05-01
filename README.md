@@ -646,6 +646,7 @@ Python
 python -m app.main --file test/python/scenario1_sql.py --lang python --db mysql
 python -m app.main --file test/python/scenario2_hql.py --lang python --db mysql
 python -m app.main --file test/python/scenario3_cmd.py --lang python --db mysql
+python -m app.main --file test/python/scenario4_mongodb.py --lang python --db mysql
 JavaScript
 python -m app.main --file test/javascript/scenario1_sql.js --lang javascript --db mysql
 python -m app.main --file test/javascript/scenario2_hql.js --lang javascript --db mysql
@@ -654,6 +655,7 @@ PHP
 python -m app.main --file test/php/scenario1_sql.php --lang php --db mysql
 python -m app.main --file test/php/scenario2_hql.php --lang php --db mysql
 python -m app.main --file test/php/scenario3_cmd.php --lang php --db mysql
+python -m app.main --file test/php/scenario4_mongodb.php --lang php --db mysql
 Pričakovani rezultati
 
 Vsak posamezen testni primer mora vrniti eno glavno zaznano ranljivost.
@@ -678,3 +680,49 @@ Detected scenarios:
 - Scenario #1: SQL Injection
 - Scenario #2: HQL Injection
 - Scenario #3: Command Injection
+
+
+
+BaseTaintTracker pravila:
+
+če vrstica vsebuje user input → variable postane tainted
+če variable uporablja drugo tainted variable → tudi ona postane tainted
+če se variable prepiše z varno vrednostjo → odstrani se iz tainted seznama
+
+
+Poenta refactoringa v mapo languages
+Jeziki naj samo povedo:
+
+kako se v tem jeziku prepozna input
+kako se v tem jeziku prepozna assignment
+kako se v tem jeziku prepozna concatenation
+kako se sledi tainted spremenljivkam
+
+Detectorji pa naj še vedno odločijo:
+
+to je SQL Injection
+to je HQL Injection
+to je Command Injection
+
+Arhitektura po refactoring
+app/
+pipeline/
+detectors/
+models/
+reporting/
+
+languages/
+├── base_parser.py
+├── base_taint_tracker.py
+├── python/
+│   ├── parser.py
+│   ├── rules.py
+│   └── taint_tracker.py
+├── php/
+│   ├── parser.py
+│   ├── rules.py
+│   └── taint_tracker.py
+└── javascript/
+    ├── parser.py
+    ├── rules.py
+    └── taint_tracker.py

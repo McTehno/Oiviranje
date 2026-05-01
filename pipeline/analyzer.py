@@ -1,6 +1,6 @@
-from parsers.python_parser import PythonParser
-from parsers.js_parser import JSParser
-from parsers.php_parser import PHPParser
+from languages.python.parser import PythonParser
+from languages.javascript.parser import JavaScriptParser
+from languages.php.parser import PHPParser
 
 from detectors.injection_detector import InjectionDetector
 from models.result import AnalysisResult
@@ -33,7 +33,7 @@ class Analyzer:
             return PythonParser()
 
         if language == "javascript":
-            return JSParser()
+            return JavaScriptParser()
 
         if language == "php":
             return PHPParser()
@@ -50,6 +50,8 @@ class Analyzer:
                 scenarios.add("Scenario #2: HQL Injection")
             elif finding.attack_type == AttackType.COMMAND_INJECTION:
                 scenarios.add("Scenario #3: Command Injection")
+            elif finding.attack_type == AttackType.MONGODB_INJECTION:
+                scenarios.add("Scenario #4: MongoDB Injection")
 
         return sorted(scenarios)
 
@@ -59,7 +61,7 @@ class Analyzer:
         if number_of_scenarios == 0:
             return RiskLevel.SAFE
 
-        if number_of_scenarios == 3:
+        if number_of_scenarios >= 3:
             return RiskLevel.CRITICAL
 
         return RiskLevel.HIGH
@@ -73,7 +75,7 @@ class Analyzer:
             return 50
         if number_of_scenarios == 2:
             return 75
-        if number_of_scenarios == 3:
+        if number_of_scenarios >= 3:
             return 100
 
         return 100

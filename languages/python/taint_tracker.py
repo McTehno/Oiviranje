@@ -4,7 +4,7 @@ from languages.base_taint_tracker import BaseTaintTracker
 from detectors.pattern_utils import contains_user_input
 
 
-class TaintTracker(BaseTaintTracker):
+class PythonTaintTracker(BaseTaintTracker):
     """
     Taint tracker specifičen za Python.
     Dedi od BaseTaintTracker in implementira Python logiko za funkcije in spremenljivke.

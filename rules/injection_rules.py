@@ -113,3 +113,54 @@ COMMAND_EXECUTION_PATTERNS = {
         r"passthru\s*\("
     ]
 }
+
+
+MONGODB_OPERATION_PATTERNS = {
+    "python": [
+        r"\.find\s*\(",
+        r"\.find_one\s*\(",
+        r"\.aggregate\s*\(",
+        r"\.update_one\s*\(",
+        r"\.update_many\s*\(",
+        r"\.delete_one\s*\(",
+        r"\.delete_many\s*\(",
+        r"\.replace_one\s*\("
+    ],
+    "javascript": [
+        r"\.find\s*\(",
+        r"\.findOne\s*\(",
+        r"\.aggregate\s*\(",
+        r"\.updateOne\s*\(",
+        r"\.updateMany\s*\(",
+        r"\.deleteOne\s*\(",
+        r"\.deleteMany\s*\(",
+        r"\.replaceOne\s*\("
+    ],
+    "php": [
+        r"->find\s*\(",
+        r"->findOne\s*\(",
+        r"->aggregate\s*\(",
+        r"->updateOne\s*\(",
+        r"->updateMany\s*\(",
+        r"->deleteOne\s*\(",
+        r"->deleteMany\s*\(",
+        r"->replaceOne\s*\("
+    ]
+}
+
+MONGODB_OPERATOR_PATTERNS = [
+    r"\$ne",
+    r"\$gt",
+    r"\$gte",
+    r"\$lt",
+    r"\$lte",
+    r"\$regex",
+    r"\$where",
+    r"\$or",
+    r"\$and",
+    r"\$in",
+    r"\$nin",
+    r"\$exists"
+]
+
+#MongoDB detector lahko uporablja obstoječi USER_INPUT_PATTERNS.

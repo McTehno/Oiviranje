@@ -15,6 +15,7 @@ class AttackType(Enum):
     SQL_INJECTION = "SQL Injection"
     HQL_INJECTION = "HQL Injection"
     COMMAND_INJECTION = "Command Injection"
+    MONGODB_INJECTION = "MongoDB Injection"
 
 
 class FindingType(Enum):
@@ -22,3 +23,4 @@ class FindingType(Enum):
     CONCAT = "String Concatenation"
     EXEC = "Command Execution"
     RAW_QUERY = "Raw Query"
+    MONGODB_INJECTION = "MongoDB Injection"

@@ -1,7 +1,7 @@
 from models.code_line import CodeLine
+from languages.base_parser import BaseParser
 
-
-class PHPParser:
+class PHPParser(BaseParser):
     def parse(self, code: str):
         code_lines = []
 
