@@ -42,11 +42,12 @@ class InjectionDetector:
         # Ustvarimo pravega taint trackerja za ta jezik
         taint_tracker = self.get_taint_tracker(language)
         
-        # Pridobimo umazane (tainted) spremenljivke za vsako vrstico
-        taint_by_line = taint_tracker.track(code_lines)
+        # Pridobimo umazane (tainted) spremenljivke in MongoDB operator spremenljivke za vsako vrstico
+        taint_by_line, operator_by_line = taint_tracker.track(code_lines)
 
         for code_line in code_lines:
             tainted_variables = taint_by_line.get(code_line.number, set())
+            operator_variables = operator_by_line.get(code_line.number, set())
 
             hql_finding = self.hql_detector.detect_line(
                 code_line,
@@ -59,7 +60,8 @@ class InjectionDetector:
 
             mongodb_finding = self.mongodb_detector.detect_line(
                 code_line,
-                tainted_variables
+                tainted_variables,
+                operator_variables
             )
 
             if mongodb_finding:
