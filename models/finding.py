@@ -16,6 +16,10 @@ class Finding:
     variables: list = field(default_factory=list)
     language: str = "unknown"
 
+    #dodala sem te atribute da lahko razlikujemo odgovore
+    file_path: str = ""
+    database: str = "unknown"
+
     risk: RiskLevel = RiskLevel.LOW
     attack_type: AttackType = AttackType.NONE
 

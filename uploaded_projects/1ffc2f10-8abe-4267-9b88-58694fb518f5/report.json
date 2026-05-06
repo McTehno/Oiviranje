@@ -1,0 +1,237 @@
+{
+  "project_score": 100,
+  "overall_risk": "CRITICAL",
+  "total_findings": 9,
+  "files_analyzed": 6,
+  "summary": {
+    "findings_by_type": {
+      "SQL Injection": 2,
+      "HQL Injection": 2,
+      "Command Injection": 2,
+      "MongoDB Injection": 3
+    },
+    "findings_by_risk": {
+      "HIGH": 9
+    },
+    "findings_by_file": {
+      "all_scenarios_python.py": 4,
+      "scenario1_sql.py": 1,
+      "scenario2_hql.py": 1,
+      "scenario3_cmd.py": 1,
+      "scenario4_mongodb.py": 1,
+      "test.py": 1
+    }
+  },
+  "files": [
+    {
+      "id": "all_scenarios_python.py",
+      "name": "all_scenarios_python.py",
+      "path": "all_scenarios_python.py",
+      "type": "file",
+      "language": "python",
+      "database": "mysql",
+      "content": "#python -m app.main --file test/python/all_scenarios_python.py --lang python --db mysql\ndef sql_example(request):\n    user_id = request.GET[\"id\"]\n    query = \"SELECT * FROM users WHERE id='\" + user_id + \"'\"\n    return query\n\n\ndef hql_example(request, session):\n    user_id = request.GET[\"id\"]\n    query = \"FROM accounts WHERE custID='\" + user_id + \"'\"\n    return session.createQuery(query)\n\n\ndef command_example(request):\n    domain = request.GET[\"domain\"]\n    cmd = \"nslookup \" + domain\n    return os.system(cmd)\n\n\ndef mongodb_example(request, users):\n    username = request.args[\"username\"]\n    filter_query = {\"username\": username}\n    return users.find_one(filter_query)",
+      "findings_count": 4,
+      "risk": "HIGH"
+    },
+    {
+      "id": "scenario1_sql.py",
+      "name": "scenario1_sql.py",
+      "path": "scenario1_sql.py",
+      "type": "file",
+      "language": "python",
+      "database": "mysql",
+      "content": "\"\"\"\nScenario #1: SQL Injection\n\nOpis:\n    Ta datoteka simulira del spletne aplikacije za prikaz uporabni\u0161kega profila.\n    Aplikacija prejme uporabnikov ID iz HTTP GET parametra in ga uporabi za\n    sestavljanje SQL poizvedbe.\n\nKaj datoteka dela:\n    - definira enostaven Logger\n    - definira UserRepository za delo z uporabniki\n    - vsebuje metodo get_user_by_id(), ki sestavi SQL query\n    - vsebuje tudi nekaj varnih metod, da datoteka ni samo minimalen primer\n\nRanljivost:\n    Uporabni\u0161ki input iz request.GET[\"id\"] se najprej shrani v spremenljivko user_id.\n    Nato se user_id neposredno prilepi v SQL query z uporabo string concatenation.\n\nNevarna vrstica:\n    query = \"SELECT * FROM users WHERE id='\" + user_id + \"'\"\n\nZakaj je nevarno:\n    Napadalec lahko spremeni vrednost parametra id in s tem spremeni pomen SQL poizvedbe.\n\nPri\u010dakovan rezultat analizatorja:\n    Scenario #1: SQL Injection\n    Risk: HIGH\n\"\"\"\n\nclass Logger:\n    def info(self, message):\n        print(\"[INFO]\", message)\n\n    def error(self, message):\n        print(\"[ERROR]\", message)\n\n\nclass UserFormatter:\n    def format_user(self, user):\n        return {\n            \"id\": user.get(\"id\"),\n            \"name\": user.get(\"name\"),\n            \"email\": user.get(\"email\")\n        }\n\n    def format_error(self, message):\n        return {\n            \"status\": \"error\",\n            \"message\": message\n        }\n\n\nclass UserRepository:\n    def __init__(self, cursor, logger):\n        self.cursor = cursor\n        self.logger = logger\n\n    def get_default_query(self):\n        query = \"SELECT * FROM users WHERE active=1\"\n        return query\n\n    def list_active_users(self):\n        query = self.get_default_query()\n        self.logger.info(\"Listing active users\")\n        self.cursor.execute(query)\n\n    def get_user_by_id(self, request):\n        user_id = request.GET[\"id\"]\n\n        # VULNERABILITY: SQL Injection\n        # User input is concatenated directly into the SQL query.\n        query = \"SELECT * FROM users WHERE id='\" + user_id + \"'\"\n\n        self.logger.info(\"Getting user by id\")\n        self.cursor.execute(query)\n\n        return query\n\n    def count_users(self):\n        query = \"SELECT COUNT(*) FROM users\"\n        self.cursor.execute(query)\n        return query\n\n\nclass UserController:\n    def __init__(self, repository, formatter):\n        self.repository = repository\n        self.formatter = formatter\n\n    def show_user(self, request):\n        try:\n            query = self.repository.get_user_by_id(request)\n            return {\n                \"status\": \"ok\",\n                \"query\": query\n            }\n        except Exception:\n            return self.formatter.format_error(\"Could not load user\")\n\n\ndef helper_clean_value(value):\n    if value is None:\n        return \"\"\n\n    return str(value).strip()\n\n\ndef main():\n    logger = Logger()\n    formatter = UserFormatter()\n\n    # cursor is assumed to be provided by the application\n    cursor = None\n\n    repository = UserRepository(cursor, logger)\n    controller = UserController(repository, formatter)\n\n    return controller",
+      "findings_count": 1,
+      "risk": "HIGH"
+    },
+    {
+      "id": "scenario2_hql.py",
+      "name": "scenario2_hql.py",
+      "path": "scenario2_hql.py",
+      "type": "file",
+      "language": "python",
+      "database": "mysql",
+      "content": "\"\"\"\nScenario #2: HQL / ORM Injection\n\nOpis:\n    Ta datoteka simulira del aplikacije za iskanje uporabni\u0161kega ra\u010duna.\n    Namesto klasi\u010dne SQL poizvedbe uporablja ORM/HQL-style poizvedbo prek createQuery().\n\nKaj datoteka dela:\n    - definira Logger\n    - definira AccountRepository za delo z ra\u010duni\n    - vsebuje metodo get_account_from_request(), ki sestavi HQL/ORM query\n    - query se nato posreduje v session.createQuery()\n\nRanljivost:\n    Uporabni\u0161ki input iz request.GET[\"id\"] se shrani v customer_id.\n    Nato se customer_id neposredno prilepi v HQL/ORM query.\n    Ta query se nato izvede prek createQuery().\n\nNevarne vrstice:\n    query = \"FROM accounts WHERE custID='\" + customer_id + \"'\"\n    return self.session.createQuery(query)\n\nZakaj je nevarno:\n    \u010ce je uporabni\u0161ki input neposredno vklju\u010den v ORM/HQL query,\n    lahko napadalec spremeni logiko poizvedbe in pridobi nepoobla\u0161\u010den dostop do podatkov.\n\nPri\u010dakovan rezultat analizatorja:\n    Scenario #2: HQL Injection\n    Risk: HIGH\n\"\"\"\n\nclass Logger:\n    def info(self, message):\n        print(\"[INFO]\", message)\n\n\nclass AccountFormatter:\n    def format_account(self, account):\n        return {\n            \"id\": account.get(\"id\"),\n            \"owner\": account.get(\"owner\"),\n            \"balance\": account.get(\"balance\")\n        }\n\n    def empty_response(self):\n        return {\n            \"status\": \"empty\",\n            \"data\": None\n        }\n\n\nclass AccountRepository:\n    def __init__(self, session, logger):\n        self.session = session\n        self.logger = logger\n\n    def get_all_accounts_query(self):\n        return \"FROM accounts\"\n\n    def list_accounts(self):\n        query = self.get_all_accounts_query()\n        self.logger.info(\"Listing accounts\")\n        return self.session.createQuery(query)\n\n    def get_account_from_request(self, request):\n        customer_id = request.GET[\"id\"]\n\n        # VULNERABILITY: HQL / ORM Injection\n        # User input is concatenated directly into the ORM query.\n        query = \"FROM accounts WHERE custID='\" + customer_id + \"'\"\n\n        self.logger.info(\"Loading account from request\")\n        return self.session.createQuery(query)\n\n    def get_demo_account(self):\n        query = \"FROM accounts WHERE custID='demo'\"\n        return self.session.createQuery(query)\n\n\nclass AccountController:\n    def __init__(self, repository, formatter):\n        self.repository = repository\n        self.formatter = formatter\n\n    def show_account(self, request):\n        account = self.repository.get_account_from_request(request)\n\n        if account is None:\n            return self.formatter.empty_response()\n\n        return {\n            \"status\": \"ok\",\n            \"data\": account\n        }\n\n\ndef normalize_customer_id(value):\n    if value is None:\n        return \"0\"\n\n    return str(value).strip()\n\n\ndef main():\n    logger = Logger()\n    formatter = AccountFormatter()\n\n    # session is assumed to be provided by ORM framework\n    session = None\n\n    repository = AccountRepository(session, logger)\n    controller = AccountController(repository, formatter)\n\n    return controller",
+      "findings_count": 1,
+      "risk": "HIGH"
+    },
+    {
+      "id": "scenario3_cmd.py",
+      "name": "scenario3_cmd.py",
+      "path": "scenario3_cmd.py",
+      "type": "file",
+      "language": "python",
+      "database": "mysql",
+      "content": "\"\"\"\nScenario #3: Command Injection\n\nOpis:\n    Ta datoteka simulira del aplikacije za preverjanje DNS/domene.\n    Aplikacija prejme ime domene iz HTTP GET parametra in sestavi sistemski ukaz nslookup.\n\nKaj datoteka dela:\n    - definira Logger\n    - definira DomainValidator\n    - definira NetworkService za izvajanje omre\u017enih operacij\n    - vsebuje metodo lookup_domain(), ki sestavi ukaz in ga izvede z os.system()\n\nRanljivost:\n    Uporabni\u0161ki input iz request.GET[\"domain\"] se shrani v domain.\n    Nato se domain neposredno prilepi v sistemski ukaz.\n    Ukaz se izvede prek os.system(cmd).\n\nNevarne vrstice:\n    cmd = \"nslookup \" + domain\n    self.os.system(cmd)\n\nZakaj je nevarno:\n    Napadalec lahko v parameter domain vstavi dodatne ukaze in tako povzro\u010di izvajanje\n    ne\u017eelenih sistemskih ukazov na stre\u017eniku.\n\nPri\u010dakovan rezultat analizatorja:\n    Scenario #3: Command Injection\n    Risk: HIGH\n\"\"\"\nclass Logger:\n    def info(self, message):\n        print(\"[INFO]\", message)\n\n    def error(self, message):\n        print(\"[ERROR]\", message)\n\n\nclass DomainValidator:\n    def is_empty(self, value):\n        return value is None or value == \"\"\n\n    def normalize(self, value):\n        if value is None:\n            return \"\"\n\n        return str(value).strip()\n\n\nclass NetworkService:\n    def __init__(self, logger, os_module):\n        self.logger = logger\n        self.os = os_module\n\n    def ping_static_host(self):\n        cmd = \"ping example.com\"\n        self.logger.info(\"Running static ping\")\n        self.os.system(cmd)\n\n    def lookup_domain(self, request):\n        domain = request.GET[\"domain\"]\n\n        # VULNERABILITY: Command Injection\n        # User input is concatenated directly into the OS command.\n        cmd = \"nslookup \" + domain\n\n        self.logger.info(\"Running domain lookup\")\n        self.os.system(cmd)\n\n    def show_help(self):\n        return \"Use domain parameter to perform lookup\"\n\n\nclass NetworkController:\n    def __init__(self, service, validator):\n        self.service = service\n        self.validator = validator\n\n    def lookup(self, request):\n        domain = request.GET[\"domain\"]\n\n        if self.validator.is_empty(domain):\n            return {\n                \"status\": \"error\",\n                \"message\": \"Missing domain\"\n            }\n\n        self.service.lookup_domain(request)\n\n        return {\n            \"status\": \"ok\",\n            \"domain\": domain\n        }\n\n\ndef build_response(status, message):\n    return {\n        \"status\": status,\n        \"message\": message\n    }\n\n\ndef main():\n    logger = Logger()\n    validator = DomainValidator()\n\n    # os module is assumed to be injected by application\n    os_module = None\n\n    service = NetworkService(logger, os_module)\n    controller = NetworkController(service, validator)\n\n    return controller",
+      "findings_count": 1,
+      "risk": "HIGH"
+    },
+    {
+      "id": "scenario4_mongodb.py",
+      "name": "scenario4_mongodb.py",
+      "path": "scenario4_mongodb.py",
+      "type": "file",
+      "language": "python",
+      "database": "mysql",
+      "content": "def get_user(request, users):\n    username = request.args[\"username\"]\n    filter_query = {\"username\": username}\n    return users.find_one(filter_query)",
+      "findings_count": 1,
+      "risk": "HIGH"
+    },
+    {
+      "id": "test.py",
+      "name": "test.py",
+      "path": "test.py",
+      "type": "file",
+      "language": "python",
+      "database": "mysql",
+      "content": "def mongodb_operator_direct_example(request, users):\n    username = request.args[\"username\"]\n    return users.find_one({\"username\": {\"$ne\": username}})",
+      "findings_count": 1,
+      "risk": "HIGH"
+    }
+  ],
+  "findings": [
+    {
+      "file_path": "all_scenarios_python.py",
+      "line": 4,
+      "type": "String Concatenation",
+      "code": "query = \"SELECT * FROM users WHERE id='\" + user_id + \"'\"",
+      "variables": [
+        "query",
+        "user_id"
+      ],
+      "language": "python",
+      "database": "mysql",
+      "risk": "HIGH",
+      "attack_type": "SQL Injection",
+      "description": "SQL query is constructed using untrusted user input.",
+      "recommendation": "Use parameterized queries or prepared statements."
+    },
+    {
+      "file_path": "all_scenarios_python.py",
+      "line": 11,
+      "type": "Raw Query",
+      "code": "return session.createQuery(query)",
+      "variables": [
+        "query",
+        "user_id"
+      ],
+      "language": "python",
+      "database": "mysql",
+      "risk": "HIGH",
+      "attack_type": "HQL Injection",
+      "description": "ORM/HQL query is constructed using untrusted user input.",
+      "recommendation": "Use safe ORM parameters instead of string concatenation."
+    },
+    {
+      "file_path": "all_scenarios_python.py",
+      "line": 17,
+      "type": "Command Execution",
+      "code": "return os.system(cmd)",
+      "variables": [
+        "cmd",
+        "domain"
+      ],
+      "language": "python",
+      "database": "mysql",
+      "risk": "HIGH",
+      "attack_type": "Command Injection",
+      "description": "User input is passed directly to an operating system command.",
+      "recommendation": "Avoid passing user input directly to system commands."
+    },
+    {
+      "file_path": "all_scenarios_python.py",
+      "line": 23,
+      "type": "MongoDB Injection",
+      "code": "return users.find_one(filter_query)",
+      "variables": [],
+      "language": "python",
+      "database": "mysql",
+      "risk": "HIGH",
+      "attack_type": "MongoDB Injection",
+      "description": "MongoDB query is constructed using untrusted user input.",
+      "recommendation": "Validate input and build MongoDB filters using allowed fields and safe operators only."
+    },
+    {
+      "file_path": "scenario1_sql.py",
+      "line": 72,
+      "type": "String Concatenation",
+      "code": "query = \"SELECT * FROM users WHERE id='\" + user_id + \"'\"",
+      "variables": [
+        "query",
+        "user_id"
+      ],
+      "language": "python",
+      "database": "mysql",
+      "risk": "HIGH",
+      "attack_type": "SQL Injection",
+      "description": "SQL query is constructed using untrusted user input.",
+      "recommendation": "Use parameterized queries or prepared statements."
+    },
+    {
+      "file_path": "scenario2_hql.py",
+      "line": 73,
+      "type": "Raw Query",
+      "code": "return self.session.createQuery(query)",
+      "variables": [
+        "query",
+        "customer_id"
+      ],
+      "language": "python",
+      "database": "mysql",
+      "risk": "HIGH",
+      "attack_type": "HQL Injection",
+      "description": "ORM/HQL query is constructed using untrusted user input.",
+      "recommendation": "Use safe ORM parameters instead of string concatenation."
+    },
+    {
+      "file_path": "scenario3_cmd.py",
+      "line": 68,
+      "type": "Command Execution",
+      "code": "self.os.system(cmd)",
+      "variables": [
+        "cmd",
+        "domain"
+      ],
+      "language": "python",
+      "database": "mysql",
+      "risk": "HIGH",
+      "attack_type": "Command Injection",
+      "description": "User input is passed directly to an operating system command.",
+      "recommendation": "Avoid passing user input directly to system commands."
+    },
+    {
+      "file_path": "scenario4_mongodb.py",
+      "line": 4,
+      "type": "MongoDB Injection",
+      "code": "return users.find_one(filter_query)",
+      "variables": [],
+      "language": "python",
+      "database": "mysql",
+      "risk": "HIGH",
+      "attack_type": "MongoDB Injection",
+      "description": "MongoDB query is constructed using untrusted user input.",
+      "recommendation": "Validate input and build MongoDB filters using allowed fields and safe operators only."
+    },
+    {
+      "file_path": "test.py",
+      "line": 3,
+      "type": "MongoDB Injection",
+      "code": "return users.find_one({\"username\": {\"$ne\": username}})",
+      "variables": [],
+      "language": "python",
+      "database": "mysql",
+      "risk": "HIGH",
+      "attack_type": "MongoDB Injection",
+      "description": "MongoDB query uses untrusted input with MongoDB operators.",
+      "recommendation": "Do not allow user-controlled MongoDB operators such as $ne, $where, $regex, or $or."
+    }
+  ],
+  "recommendations": [
+    "Use parameterized queries or prepared statements for SQL queries.",
+    "Use safe ORM parameters instead of raw query construction.",
+    "Avoid passing user input directly to operating system commands.",
+    "Validate MongoDB filters and block user-controlled operators such as $ne, $where and $regex."
+  ],
+  "scan_id": "1ffc2f10-8abe-4267-9b88-58694fb518f5"
+}
