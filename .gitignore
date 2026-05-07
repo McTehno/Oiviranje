@@ -46,3 +46,7 @@ Desktop.ini
 *.temp
 tmp/
 temp/
+
+# Backend generated analysis data
+backend/uploaded_projects/
+uploaded_projects/

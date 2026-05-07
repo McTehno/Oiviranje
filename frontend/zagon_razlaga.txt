@@ -1,0 +1,228 @@
+povezava med obstoječim Python analizatorjem in novim React frontend prototipom. Obstoječa logika analizatorja ni bila zamenjana, ampak je bila uporabljena kot jedro sistema. Ideja je, da Analyzer še naprej analizira eno posamezno datoteko, nova plast pa omogoča analizo celotnega projekta oziroma ZIP datoteke.
+
+Najprej je bil backend razširjen tako, da podpira analizo celotnega projekta. Dodan je bil nov ProjectAnalyzer, ki pregleda vse datoteke v naloženem projektu, preskoči nepodprte mape, kot so node_modules, .git, venv, dist, build in podobno, zazna programski jezik glede na končnico datoteke ter za vsako podprto datoteko pokliče obstoječo metodo:
+
+analyzer.analyze(
+    code=code,
+    language=language,
+    database=database
+)
+
+To pomeni, da se obstoječa logika za SQL injection, HQL injection, command injection, MongoDB injection in tainted variables še vedno uporablja na enak način kot prej. Nova funkcionalnost samo omogoča, da se ta analiza izvede za več datotek in se rezultati združijo v skupno projektno poročilo.
+
+Dodano je bilo tudi polje file_path v model Finding, ker mora frontend pri analizi celotnega projekta vedeti, v kateri datoteki se nahaja posamezna ranljivost. Brez tega bi bilo znano samo, da je na primer vrstica 3 ranljiva, ne pa tudi, v kateri datoteki. Dodano je bilo tudi polje database, da se pri vsakem findingu ve, v katerem database contextu je bila analiza izvedena.
+
+Backend zdaj vrača strukturiran JSON rezultat, ki vsebuje skupno oceno projekta, skupno tveganje, število najdenih ranljivosti, seznam analiziranih datotek, vse findinge, statistiko po tipu ranljivosti, statistiko po resnosti in priporočila. Primer podatkov, ki jih backend vrača, vključuje:
+
+project_score
+overall_risk
+total_findings
+files_analyzed
+summary
+files
+findings
+recommendations
+scan_id
+
+Dodana je bila nova FastAPI aplikacija v app/api.py. Ta omogoča endpoint:
+
+POST /analyze-project
+
+Ta endpoint sprejme ZIP datoteko projekta in database_config, nato projekt razširi, zažene ProjectAnalyzer in vrne JSON rezultat, ki ga lahko React frontend uporabi za prikaz.
+
+Backend je bil uspešno testiran prek Swagger dokumentacije na:
+
+http://127.0.0.1:8000/docs
+
+Test z test.zip je uspel. Backend je pravilno sprejel ZIP datoteko, analiziral test.py, našel MongoDB Injection ranljivost, vrnil project_score, overall_risk, files, findings in summary. To potrjuje, da deluje celoten tok:
+
+ZIP upload → FastAPI → ProjectAnalyzer → obstoječi Analyzer → JSON response
+
+Na frontendu je bil obstoječi React prototip prilagojen tako, da ne uporablja več samo mockData, ampak sprejme realne podatke iz backenda. Dodani so bili TypeScript tipi za rezultat analize, datoteke in findinge. Dodan je bil API helper za pošiljanje ZIP datoteke na backend. Dodana je bila funkcija za pretvorbo flat seznama datotek v drevesno strukturo, da lahko FileTree prikaže mape in datoteke.
+
+Dodana je bila komponenta UploadPanel, ki omogoča uporabniku, da naloži ZIP projekt, izbere privzeto podatkovno bazo, na primer mysql ali mongodb, in zažene analizo. Po končani analizi se rezultat shrani v React state in aplikacija prikaže glavni dashboard.
+
+App.tsx je bil spremenjen tako, da najprej prikaže upload zaslon, po uspešni analizi pa prikaže FileTree, CodeViewer in Dashboard. FileTree zdaj uporablja tipe iz types/analysis, ne več iz mockData, kar je odpravilo problem, da preview kode ni delal. Po kliku na datoteko se izbrana datoteka shrani kot selectedFile, CodeViewer pa prikaže njeno vsebino iz file.content.
+
+CodeViewer je bil prilagojen tako, da prejme file in seznam findings za izbrano datoteko. Ranljive vrstice so označene z rdečim ozadjem, pod ranljivo vrstico pa se prikaže VulnerabilityWidget. Ta widget zdaj uporablja backend model Finding, zato prikazuje attack_type, risk, line, database, description in recommendation.
+
+Dashboard je bil spremenjen tako, da ne uporablja več statisticsData iz mockData, ampak uporablja realni analysisResult iz backenda. Iz summary.findings_by_type, summary.findings_by_risk in summary.findings_by_file se zgradijo podatki za grafe. Tako dashboard zdaj prikazuje realno število ranljivosti po tipu, resnosti in datotekah.
+
+Odstranjena oziroma popravljena je bila logika Import Folder v FileTree, ker se projekt zdaj nalaga prek UploadPanel. Po analizi se datoteke prikažejo neposredno v file tree, brez dodatnega klika.
+
+Končni tok aplikacije je zdaj:
+
+Uporabnik odpre frontend.
+Naloži ZIP projekt.
+Izbere privzeto podatkovno bazo.
+Klikne Analyze Project.
+Frontend pošlje ZIP na FastAPI backend.
+Backend razširi ZIP.
+ProjectAnalyzer pregleda vse podprte datoteke.
+Za vsako datoteko pokliče obstoječi Analyzer.
+Rezultati se združijo v skupni JSON.
+Frontend prikaže file tree, preview kode, označene ranljive vrstice, finding details in dashboard.
+Namestitev backenda
+
+Najprej se odpre terminal v root mapi Python projekta, kjer so mape:
+
+app/
+pipeline/
+models/
+detectors/
+languages/
+rules/
+
+Primer poti:
+
+cd C:\oiv_projektna_naloga\Oiviranje
+
+Če virtual environment že obstaja, se preveri z:
+
+dir .venv
+
+Če obstaja mapa .venv, se aktivira:
+
+.\.venv\Scripts\Activate.ps1
+
+Če PowerShell javi napako glede execution policy, se uporabi:
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+Nato še enkrat:
+
+.\.venv\Scripts\Activate.ps1
+
+Ko je virtual environment aktiviran, mora terminal izgledati približno tako:
+
+(.venv) PS C:\oiv_projektna_naloga\Oiviranje>
+
+Potem se namestijo potrebni backend paketi:
+
+python -m pip install fastapi uvicorn python-multipart
+
+Če .venv še ne obstaja, se najprej ustvari:
+
+python -m venv .venv
+
+nato se aktivira:
+
+.\.venv\Scripts\Activate.ps1
+
+in šele potem se namestijo paketi:
+
+python -m pip install fastapi uvicorn python-multipart
+
+Backend se zažene z:
+
+python -m uvicorn app.api:app --reload
+
+Če je vse pravilno, se v terminalu prikaže nekaj takega:
+
+Uvicorn running on http://127.0.0.1:8000
+Application startup complete.
+
+Backend se preveri v browserju:
+
+http://127.0.0.1:8000
+
+Pričakovan odgovor:
+
+{
+  "message": "SAST Analyzer API is running"
+}
+
+Swagger dokumentacija za testiranje endpointa je dostopna na:
+
+http://127.0.0.1:8000/docs
+
+Tam se lahko testira endpoint:
+
+POST /analyze-project
+
+Za test se naloži ZIP datoteka in pri database_config vnese:
+
+{
+  "mode": "single",
+  "default_database": "mysql",
+  "folder_databases": {}
+}
+Namestitev frontenda
+
+V drugem terminalu se odpre mapa frontend projekta, na primer:
+
+cd C:\pot\do\ninafrontend
+
+Nato se namestijo frontend dependencyji:
+
+npm install
+
+Frontend se zažene z:
+
+npm run dev
+
+Po zagonu Vite prikaže lokalni naslov, običajno:
+
+http://localhost:5173
+
+Ta naslov se odpre v browserju.
+
+Pomembno je, da backend medtem še vedno teče na:
+
+http://127.0.0.1:8000
+
+ali:
+
+http://localhost:8000
+
+V src/api/analyzerApi.ts mora biti API URL nastavljen enako kot backend naslov. Če backend teče na 127.0.0.1, naj bo:
+
+const API_URL = 'http://127.0.0.1:8000';
+
+Če backend teče na localhost, lahko ostane:
+
+const API_URL = 'http://localhost:8000';
+Datoteke, ki so bile dodane ali spremenjene
+
+Na backendu:
+
+models/finding.py
+app/file_utils.py
+pipeline/project_analyzer.py
+app/api.py
+requirements.txt
+
+Na frontendu:
+
+src/types/analysis.ts
+src/api/analyzerApi.ts
+src/utils/BuildFileTree.ts ali src/utils/buildFileTree.ts
+src/components/UploadPanel.tsx
+src/App.tsx
+src/components/FileTree.tsx
+src/components/CodeViewer.tsx
+src/components/VulnerabilityWidget.tsx
+src/components/Dashboard.tsx
+
+Pomembno je, da se ime BuildFileTree oziroma buildFileTree uporablja enako v imenu datoteke, exportu in importu. Če je datoteka:
+
+src/utils/BuildFileTree.ts
+
+potem naj bo import:
+
+import { BuildFileTree } from './utils/BuildFileTree';
+
+Če je datoteka:
+
+src/utils/buildFileTree.ts
+
+potem naj bo import:
+
+import { buildFileTree } from './utils/buildFileTree';
+Povzetek trenutnega stanja
+
+Trenutno je narejeno delujoče povezovanje med backendom in frontendom. Backend sprejme ZIP projekt, ga analizira s trenutno Python logiko in vrne strukturiran JSON. Frontend ta rezultat uporabi za prikaz datotek, preview kode, označenih ranljivih vrstic, podrobnosti ranljivosti in grafičnega dashboarda.
+
+Najpomembnejše je, da se obstoječa analiza ni prepisovala.
+Dodan je bil samo projektni wrapper, ki obstoječi Analyzer pokliče za vsako podprto datoteko posebej. 
+To je najbolj varna in čista rešitev, ker se ohrani že narejena logika za detekcijo ranljivosti.
