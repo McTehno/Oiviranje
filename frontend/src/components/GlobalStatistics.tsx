@@ -1,14 +1,4 @@
 import React, { useMemo } from 'react';
-import {
-  BarChart3,
-  FileText,
-  FileWarning,
-  Lightbulb,
-  PieChart as PieChartIcon,
-  ShieldAlert,
-  ShieldCheck,
-  Target,
-} from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   Bar,
@@ -23,7 +13,25 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { AnalysisResult, Severity } from '../types/analysis';
+import {
+  BarChart3,
+  FileText,
+  FileWarning,
+  Lightbulb,
+  PieChart as PieChartIcon,
+  ShieldAlert,
+  ShieldCheck,
+  Target,
+} from 'lucide-react';
+import type { AnalysisResult } from '../types/analysis';
+import {
+  severityColors,
+  summarizeFindingsByAttackType,
+  summarizeFindingsByFile,
+  summarizeFindingsBySeverity,
+  type FileSeveritySummary,
+  vulnerabilityTypeColors,
+} from '../utils/severity';
 
 interface GlobalStatisticsProps {
   result: AnalysisResult;
@@ -35,41 +43,6 @@ interface MetricCardProps {
   subtitle: string;
   icon: React.ReactNode;
 }
-
-interface TopFileEntry {
-  path: string;
-  count: number;
-  risk: Severity;
-}
-
-const severityPalette: Record<Severity, string> = {
-  CRITICAL: '#EF4444',
-  HIGH: '#F97316',
-  MEDIUM: '#FACC15',
-  LOW: '#22C55E',
-  SAFE: '#22C55E',
-  UNKNOWN: '#9CA3AF',
-};
-
-const severityBadgeClasses: Record<Severity, string> = {
-  CRITICAL: 'bg-red-100 text-red-700 border-red-200',
-  HIGH: 'bg-orange-100 text-orange-700 border-orange-200',
-  MEDIUM: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  LOW: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  SAFE: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  UNKNOWN: 'bg-slate-100 text-slate-700 border-slate-200',
-};
-
-const severityBarClasses: Record<Severity, string> = {
-  CRITICAL: 'bg-red-500',
-  HIGH: 'bg-orange-500',
-  MEDIUM: 'bg-yellow-400',
-  LOW: 'bg-emerald-500',
-  SAFE: 'bg-emerald-500',
-  UNKNOWN: 'bg-slate-400',
-};
-
-const severityOrder: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'SAFE', 'UNKNOWN'];
 
 const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtitle, icon }) => (
   <div className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-[0_10px_30px_-15px_rgba(15,23,42,0.25)] backdrop-blur">
@@ -85,42 +58,31 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtitle, icon })
   </div>
 );
 
-const toSeverity = (value: string): Severity => {
-  return (severityOrder.includes(value as Severity) ? value : 'UNKNOWN') as Severity;
-};
-
 export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) => {
   const isSafeProject = result.total_findings === 0 || result.overall_risk === 'SAFE';
 
-  const vulnerabilitiesByType = useMemo(() => {
-    return Object.entries(result.summary.findings_by_type)
-      .map(([name, count]) => ({ name, count }))
-      .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name));
-  }, [result.summary.findings_by_type]);
+  // `vulnerabilitiesByType` vzame vse findinge na nivoju celotnega repozitorija,
+  // jih zdruzi po `attack_type` in pripravi podatke za globalni vodoravni bar chart.
+  // UI ga uporablja za primerjavo najpogostejših napadalnih vzorcev v projektu.
+  const vulnerabilitiesByType = useMemo(
+    () => summarizeFindingsByAttackType(result.findings),
+    [result.findings]
+  );
 
-  const severityBreakdown = useMemo(() => {
-    return Object.entries(result.summary.findings_by_risk)
-      .map(([name, value]) => {
-        const severity = toSeverity(name);
-        return {
-          name: severity,
-          value,
-          color: severityPalette[severity],
-        };
-      })
-      .sort((left, right) => severityOrder.indexOf(left.name) - severityOrder.indexOf(right.name));
-  }, [result.summary.findings_by_risk]);
+  // `severityBreakdown` iz vseh findingov izdela globalno porazdelitev po resnosti.
+  // Ta rezultat napaja pie chart in pokaže, koliko CRITICAL/HIGH/MEDIUM/LOW/SAFE primerov je v projektu.
+  const severityBreakdown = useMemo(
+    () => summarizeFindingsBySeverity(result.findings),
+    [result.findings]
+  );
 
-  const topExploitableFiles = useMemo<TopFileEntry[]>(() => {
-    return Object.entries(result.summary.findings_by_file)
-      .map(([path, count]) => ({
-        path,
-        count,
-        risk: result.files.find((file) => file.path === path)?.risk ?? 'UNKNOWN',
-      }))
-      .sort((left, right) => right.count - left.count || left.path.localeCompare(right.path))
-      .slice(0, 5);
-  }, [result.files, result.summary.findings_by_file]);
+  // `topExploitableFiles` zdruzi findinge po datotekah, za vsako datoteko izracuna
+  // skupno stevilo findingov in najvisjo resnost ter pripravi seznam za globalni pregled.
+  // UI iz tega izriše najbolj izpostavljene datoteke z barvnim progress barom.
+  const topExploitableFiles = useMemo<FileSeveritySummary[]>(
+    () => summarizeFindingsByFile(result.findings).slice(0, 5),
+    [result.findings]
+  );
 
   const maxFileIssues = Math.max(1, ...topExploitableFiles.map((file) => file.count));
 
@@ -240,19 +202,26 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
             </div>
 
             <div className="h-[320px]">
+              {/* ResponsiveContainer zagotovi, da graf zapolni celotno kartico in ostane odziven. */}
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={vulnerabilitiesByType} margin={{ top: 10, right: 10, left: -8, bottom: 18 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis
+                <BarChart
+                  data={vulnerabilitiesByType}
+                  layout="vertical"
+                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                >
+                  {/* CartesianGrid doda ozadje z mrezo, ki pomaga pri branju dolzin stolpcev. */}
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                  {/* XAxis prikazuje stevilo findingov, YAxis pa tip napada. */}
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis
+                    type="category"
                     dataKey="name"
+                    width={140}
                     tick={{ fontSize: 11 }}
                     tickLine={false}
                     axisLine={false}
-                    interval={0}
-                    angle={-25}
-                    textAnchor="end"
                   />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  {/* Tooltip prikaze natančne podatke ob hoverju nad posameznim vodoravnim stolpcem. */}
                   <Tooltip
                     cursor={{ fill: '#F8FAFC' }}
                     contentStyle={{
@@ -261,7 +230,15 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
                       boxShadow: '0 12px 24px -12px rgba(15, 23, 42, 0.25)',
                     }}
                   />
-                  <Bar dataKey="count" fill="#6366F1" radius={[6, 6, 0, 0]} />
+                  {/* Bar vsebuje serijo stolpcev, Cell pa vsakemu stolpcu dodeli svojo barvo. */}
+                  <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={18}>
+                    {vulnerabilitiesByType.map((entry, index) => (
+                      <Cell
+                        key={`${entry.name}-${index}`}
+                        fill={vulnerabilityTypeColors[index % vulnerabilityTypeColors.length]}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -284,13 +261,17 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
             </div>
 
             <div className="h-[320px]">
+              {/* ResponsiveContainer prilagodi krozni graf velikosti vsebovane kartice. */}
               <ResponsiveContainer width="100%" height="100%">
+                {/* PieChart prikazuje razporeditev severity nivojev v krogu. */}
                 <PieChart>
+                  {/* Pie porabi agregirane podatke, Cell pa vsakemu izseku dodeli skupno severity barvo. */}
                   <Pie data={severityBreakdown} innerRadius={50} outerRadius={82} paddingAngle={4} dataKey="value">
                     {severityBreakdown.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
+                      <Cell key={entry.name} fill={severityColors[entry.name]} />
                     ))}
                   </Pie>
+                  {/* Tooltip po hoverju pokaže dejansko vrednost posameznega izseka. */}
                   <Tooltip
                     contentStyle={{
                       borderRadius: '12px',
@@ -298,6 +279,7 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
                       boxShadow: '0 12px 24px -12px rgba(15, 23, 42, 0.25)',
                     }}
                   />
+                  {/* Legend pojasni, kateri severity nivo predstavlja posamezna barva. */}
                   <Legend
                     verticalAlign="middle"
                     align="right"
@@ -349,15 +331,24 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
                         <p className="mt-2 text-xs text-slate-500">{file.count} findings</p>
                       </div>
 
-                      <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${severityBadgeClasses[file.risk]}`}>
+                      <span
+                        className="inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                        style={{
+                          borderColor: severityColors[file.risk],
+                          color: severityColors[file.risk],
+                        }}
+                      >
                         {file.risk}
                       </span>
                     </div>
 
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className={`h-full rounded-full ${severityBarClasses[file.risk]}`}
-                        style={{ width: `${(file.count / maxFileIssues) * 100}%` }}
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(file.count / maxFileIssues) * 100}%`,
+                          backgroundColor: severityColors[file.risk],
+                        }}
                       />
                     </div>
                   </div>
@@ -389,7 +380,10 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
             ) : (
               <div className="space-y-3">
                 {result.recommendations.map((recommendation, index) => (
-                  <div key={`${index}-${recommendation}`} className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 shadow-sm">
+                  <div
+                    key={`${index}-${recommendation}`}
+                    className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 shadow-sm"
+                  >
                     <div className="flex items-start gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
                         {index + 1}
