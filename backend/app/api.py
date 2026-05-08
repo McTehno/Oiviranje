@@ -3,6 +3,9 @@ import json
 import uuid
 import zipfile
 import shutil
+from io import BytesIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from pydantic import BaseModel
 from app.github_utils import download_github_repo_zip, extract_zip
@@ -13,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pipeline.project_analyzer import ProjectAnalyzer
 
 app = FastAPI(title="SAST Analyzer API")
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,8 +25,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-UPLOAD_ROOT = "uploaded_projects"
 
 class GitHubAnalyzeRequest(BaseModel):
     repo_url: str
@@ -41,39 +43,39 @@ async def analyze_project(
     database_config: str = Form(...)
 ):
     scan_id = str(uuid.uuid4())
-    scan_dir = os.path.join(UPLOAD_ROOT, scan_id)
-    zip_path = os.path.join(scan_dir, project.filename)
-    extract_dir = os.path.join(scan_dir, "source")
+    # ZIP analiza tece v začasnem delovnem prostoru pod backendom,
+    # zato ne uporablja Windows temp mape.
+    with TemporaryDirectory(prefix="sast_zip_", dir=str(BACKEND_ROOT)) as temp_root:
+        scan_dir = Path(temp_root)
+        extract_dir = scan_dir / "source"
 
-    os.makedirs(scan_dir, exist_ok=True)
+        if not project.filename or not project.filename.endswith(".zip"):
+            return {
+                "error": "Only ZIP project upload is supported."
+            }
 
-    with open(zip_path, "wb") as buffer:
-        shutil.copyfileobj(project.file, buffer)
+        extract_dir.mkdir(parents=True, exist_ok=True)
 
-    if not project.filename.endswith(".zip"):
-        return {
-            "error": "Only ZIP project upload is supported."
-        }
+        zip_bytes = await project.read()
 
-    os.makedirs(extract_dir, exist_ok=True)
+        with zipfile.ZipFile(BytesIO(zip_bytes), "r") as zip_ref:
+            zip_ref.extractall(extract_dir)
 
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(extract_dir)
+        parsed_database_config = json.loads(database_config)
 
-    parsed_database_config = json.loads(database_config)
+        analyzer = ProjectAnalyzer()
+        result = analyzer.analyze_project(
+            project_path=str(extract_dir),
+            database_config=parsed_database_config
+        )
 
-    analyzer = ProjectAnalyzer()
-    result = analyzer.analyze_project(
-        project_path=extract_dir,
-        database_config=parsed_database_config
-    )
+        result["scan_id"] = scan_id
+        result["source"] = "zip"
 
-    result["scan_id"] = scan_id
+        with open(scan_dir / "report.json", "w", encoding="utf-8") as file:
+            json.dump(result, file, indent=2)
 
-    with open(os.path.join(scan_dir, "report.json"), "w", encoding="utf-8") as file:
-        json.dump(result, file, indent=2)
-
-    return result
+        return result
 
 # Ta endpoint omogoča analizo projekta, ki je naložen kot mapa. 
 # Datoteka se razširi v začasno mapo, nato pa se izvede analiza. 
@@ -84,76 +86,76 @@ async def analyze_folder(
         database_config: str = Form(...)
 ):
     scan_id = str(uuid.uuid4())
-    scan_dir = os.path.join(UPLOAD_ROOT, scan_id)
-    source_dir = os.path.join(scan_dir, "source")
+    # Folder analiza uporablja enako backend-local začasno delovno okolje kot ZIP analiza.
+    with TemporaryDirectory(prefix="sast_folder_", dir=str(BACKEND_ROOT)) as temp_root:
+        scan_dir = Path(temp_root)
+        source_dir = scan_dir / "source"
 
-    os.makedirs(source_dir, exist_ok=True)
+        source_dir.mkdir(parents=True, exist_ok=True)
 
-    parsed_database_config = json.loads(database_config)
+        parsed_database_config = json.loads(database_config)
 
-    for uploaded_file in files:
-        relative_path = uploaded_file.filename
-        safe_path = os.path.normpath(relative_path)
+        for uploaded_file in files:
+            relative_path = uploaded_file.filename
+            safe_path = os.path.normpath(relative_path)
 
-        # osnovna zaščita pred pisanjem izven source_dir
-        if safe_path.startswith(".."):
-            continue
+            # osnovna zaščita pred pisanjem izven source_dir
+            if safe_path.startswith(".."):
+                continue
 
-        destination_path = os.path.join(source_dir, safe_path)
-        os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+            destination_path = source_dir / safe_path
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(destination_path, "wb") as buffer:
-            shutil.copyfileobj(uploaded_file.file, buffer)
+            with open(destination_path, "wb") as buffer:
+                shutil.copyfileobj(uploaded_file.file, buffer)
 
-    analyzer = ProjectAnalyzer()
-    result = analyzer.analyze_project(
-        project_path=source_dir,
-        database_config=parsed_database_config
-    )
+        analyzer = ProjectAnalyzer()
+        result = analyzer.analyze_project(
+            project_path=str(source_dir),
+            database_config=parsed_database_config
+        )
 
-    result["scan_id"] = scan_id
-    result["source"] = "folder"
+        result["scan_id"] = scan_id
+        result["source"] = "folder"
 
-    with open(os.path.join(scan_dir, "report.json"), "w", encoding="utf-8") as file:
-        json.dump(result, file, indent=2)
+        with open(scan_dir / "report.json", "w", encoding="utf-8") as file:
+            json.dump(result, file, indent=2)
 
-    return result
+        return result
 
 
 
 @app.post("/analyze-github")
 async def analyze_github(request: GitHubAnalyzeRequest):
     scan_id = str(uuid.uuid4())
-    scan_dir = os.path.join(UPLOAD_ROOT, scan_id)
-    zip_path = os.path.join(scan_dir, "github_repo.zip")
-    extract_dir = os.path.join(scan_dir, "source")
+    # GitHub analiza uporablja backend-local začasni workspace in zip izvede v spominu.
+    with TemporaryDirectory(prefix="sast_github_", dir=str(BACKEND_ROOT)) as temp_root:
+        scan_dir = Path(temp_root)
+        extract_dir = scan_dir / "source"
 
-    os.makedirs(scan_dir, exist_ok=True)
+        extract_dir.mkdir(parents=True, exist_ok=True)
 
-    try:
-        download_github_repo_zip(
-            repo_url=request.repo_url,
-            destination_path=zip_path
-        )
+        try:
+            zip_bytes = download_github_repo_zip(repo_url=request.repo_url)
 
-        extract_zip(zip_path, extract_dir)
+            extract_zip(zip_bytes, str(extract_dir))
 
-        analyzer = ProjectAnalyzer()
-        result = analyzer.analyze_project(
-            project_path=extract_dir,
-            database_config=request.database_config
-        )
+            analyzer = ProjectAnalyzer()
+            result = analyzer.analyze_project(
+                project_path=str(extract_dir),
+                database_config=request.database_config
+            )
 
-        result["scan_id"] = scan_id
-        result["source"] = "github"
-        result["repo_url"] = request.repo_url
+            result["scan_id"] = scan_id
+            result["source"] = "github"
+            result["repo_url"] = request.repo_url
 
-        with open(os.path.join(scan_dir, "report.json"), "w", encoding="utf-8") as file:
-            json.dump(result, file, indent=2)
+            with open(scan_dir / "report.json", "w", encoding="utf-8") as file:
+                json.dump(result, file, indent=2)
 
-        return result
+            return result
 
-    except Exception as error:
-        return {
-            "error": str(error)
-        }
+        except Exception as error:
+            return {
+                "error": str(error)
+            }

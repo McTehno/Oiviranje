@@ -6,6 +6,11 @@ export type Severity =
   | 'CRITICAL'
   | 'UNKNOWN';
 
+// Backend sedaj eksplicitno oznaci, od kod izvira sken.
+// To nam omogoca, da ob vrnitvi na UploadPanel odstranimo samo GitHub ZIP artefakt,
+// medtem ko drugih vrst skenov ne tisimo skozi nepotrebno cleanup pot.
+export type ScanSource = 'zip' | 'folder' | 'github';
+
 export interface Finding {
   file_path: string;
   line: number;
@@ -36,6 +41,8 @@ export interface FileData {
 
 export interface AnalysisResult {
   scan_id?: string;
+  source?: ScanSource;
+  repo_url?: string;
   project_score: number;
   overall_risk: Severity;
   total_findings: number;

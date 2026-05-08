@@ -1,5 +1,6 @@
 import os
 import re
+from io import BytesIO
 import zipfile
 import requests
 
@@ -22,9 +23,9 @@ def parse_github_url(repo_url: str):
     return owner, repo
 
 
-def download_github_repo_zip(repo_url: str, destination_path: str):
+def download_github_repo_zip(repo_url: str) -> bytes:
     """
-    Prenese javni GitHub repozitorij kot ZIP.
+    Prenese javni GitHub repozitorij kot ZIP bytes.
     Za začetek podpiramo samo public repos.
     """
     owner, repo = parse_github_url(repo_url)
@@ -38,15 +39,14 @@ def download_github_repo_zip(repo_url: str, destination_path: str):
             f"Could not download GitHub repository. Status code: {response.status_code}"
         )
 
-    with open(destination_path, "wb") as file:
-        file.write(response.content)
+    return response.content
 
 
-def extract_zip(zip_path: str, extract_dir: str):
+def extract_zip(zip_content: bytes, extract_dir: str):
     """
     Razširi preneseni GitHub ZIP v začasno source mapo.
     """
     os.makedirs(extract_dir, exist_ok=True)
 
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+    with zipfile.ZipFile(BytesIO(zip_content), "r") as zip_ref:
         zip_ref.extractall(extract_dir)

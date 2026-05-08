@@ -37,6 +37,9 @@ const App: React.FC = () => {
   };
 
   const handleReset = () => {
+    // UI takoj vrnemo na zacetni zaslon.
+    // Backend zdaj uporablja TemporaryDirectory za vse skene, zato
+    // ni vec potrebnega nobenega ročnega cleanup klica iz frontenda.
     setAnalysisResult(null);
     setSelectedFile(null);
   };
