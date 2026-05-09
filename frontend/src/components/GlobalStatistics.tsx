@@ -27,9 +27,6 @@ import type { AnalysisResult } from '../types/analysis';
 import {
   severityColors,
   summarizeFindingsByAttackType,
-  summarizeFindingsByFile,
-  summarizeFindingsBySeverity,
-  type FileSeveritySummary,
   vulnerabilityTypeColors,
 } from '../utils/severity';
 

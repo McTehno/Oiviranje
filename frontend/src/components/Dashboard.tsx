@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronUp,
   PieChart as PieChartIcon,
+  ShieldCheck,
 } from 'lucide-react';
 import type { FileData, Finding } from '../types/analysis';
 import {
@@ -78,110 +79,114 @@ export const Dashboard: React.FC<DashboardProps> = ({ selectedFile, findings }) 
             exit={{ height: 0 }}
             className="overflow-hidden"
           >
-            <div className="grid h-full grid-cols-1 gap-4 p-4 xl:grid-cols-2">
-              <section className="flex min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center gap-2">
-                  <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600">
-                    <BarChart3 size={18} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-800">Vulnerabilities by Type</h3>
-                    <p className="text-xs text-gray-500">Counts for the open file only.</p>
-                  </div>
+            {findings.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,_rgba(16,185,129,0.08),_transparent_70%)] p-6 text-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 shadow-inner shadow-emerald-100">
+                  <ShieldCheck size={48} strokeWidth={1.5} />
                 </div>
-
-                <div className="min-h-0 flex-1">
-                  {/* ResponsiveContainer poskrbi, da graf zapolni razpolozljiv prostor in ostane odziven. */}
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={vulnerabilitiesByType}
-                      layout="vertical"
-                      margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                    >
-                      {/* CartesianGrid doda subtilno mrezo, da je primerjanje dolzin lazje. */}
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5E7EB" />
-                      {/* XAxis prikazuje stevilo findingov, YAxis pa tip napada. */}
-                      <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        width={140}
-                        tick={{ fontSize: 11 }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      {/* Tooltip pokaze natancno vrednost ob hoverju nad posameznim vodoravnim stolpcem. */}
-                      <Tooltip
-                        cursor={{ fill: '#F9FAFB' }}
-                        contentStyle={{
-                          borderRadius: '12px',
-                          border: 'none',
-                          boxShadow: '0 12px 24px -12px rgba(15, 23, 42, 0.25)',
-                        }}
-                      />
-                      {/* Bar vsebuje serijo stolpcev, Cell pa vsakemu stolpcu dodeli svojo barvo. */}
-                      <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={18}>
-                        {vulnerabilitiesByType.map((entry, index) => (
-                          <Cell
-                            key={`${entry.name}-${index}`}
-                            fill={vulnerabilityTypeColors[index % vulnerabilityTypeColors.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </section>
-
-              <section className="flex min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center gap-2">
-                  <div className="rounded-xl bg-rose-50 p-2 text-rose-600">
-                    <PieChartIcon size={18} />
+                <h3 className="mt-4 text-xl font-bold tracking-tight text-slate-800">
+                  File is safe
+                </h3>
+                <p className="mt-2 max-w-sm text-sm text-slate-500">
+                  No security vulnerabilities or risky patterns were detected in <span className="font-mono text-xs text-slate-600">{selectedFile.name}</span>.
+                </p>
+              </div>
+            ) : (
+              <div className="grid h-full grid-cols-1 gap-4 p-4 xl:grid-cols-2">
+                <section className="flex min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600">
+                      <BarChart3 size={18} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-800">Vulnerabilities by Type</h3>
+                      <p className="text-xs text-gray-500">Counts for the open file only.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-800">Severity Breakdown</h3>
-                    <p className="text-xs text-gray-500">Severity distribution for the open file.</p>
-                  </div>
-                </div>
 
-                <div className="min-h-0 flex-1">
-                  {/* ResponsiveContainer omogoce, da se pie chart prilagaja prostoru kartice. */}
-                  <ResponsiveContainer width="100%" height="100%">
-                    {/* PieChart vizualno prikaze razporeditev po severity nivojih. */}
-                    <PieChart>
-                      {/* Pie pobere pripravljene podatke, Cell pa vsakemu izseku nastavi barvo iz skupnega severity mapa. */}
-                      <Pie
-                        data={severityBreakdown}
-                        innerRadius={48}
-                        outerRadius={78}
-                        paddingAngle={4}
-                        dataKey="value"
-                      >
-                        {severityBreakdown.map((entry) => (
-                          <Cell key={entry.name} fill={severityColors[entry.name]} />
-                        ))}
-                      </Pie>
-                      {/* Tooltip prikaze stevilo findingov za trenutno izbran severity segment. */}
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: '12px',
-                          border: 'none',
-                          boxShadow: '0 12px 24px -12px rgba(15, 23, 42, 0.25)',
-                        }}
-                      />
-                      {/* Legend razlozi, katera barva pripada posameznemu severity nivoju. */}
-                      <Legend
-                        verticalAlign="middle"
-                        align="right"
+                  <div className="min-h-0 flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={vulnerabilitiesByType}
                         layout="vertical"
-                        iconType="circle"
-                        wrapperStyle={{ fontSize: '12px' }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </section>
-            </div>
+                        margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5E7EB" />
+                        <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={140}
+                          tick={{ fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip
+                          cursor={{ fill: '#F9FAFB' }}
+                          contentStyle={{
+                            borderRadius: '12px',
+                            border: 'none',
+                            boxShadow: '0 12px 24px -12px rgba(15, 23, 42, 0.25)',
+                          }}
+                        />
+                        <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={18}>
+                          {vulnerabilitiesByType.map((entry, index) => (
+                            <Cell
+                              key={`${entry.name}-${index}`}
+                              fill={vulnerabilityTypeColors[index % vulnerabilityTypeColors.length]}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+
+                <section className="flex min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="rounded-xl bg-rose-50 p-2 text-rose-600">
+                      <PieChartIcon size={18} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-800">Severity Breakdown</h3>
+                      <p className="text-xs text-gray-500">Severity distribution for the open file.</p>
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={severityBreakdown}
+                          innerRadius={48}
+                          outerRadius={78}
+                          paddingAngle={4}
+                          dataKey="value"
+                        >
+                          {severityBreakdown.map((entry) => (
+                            <Cell key={entry.name} fill={severityColors[entry.name as keyof typeof severityColors]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: '12px',
+                            border: 'none',
+                            boxShadow: '0 12px 24px -12px rgba(15, 23, 42, 0.25)',
+                          }}
+                        />
+                        <Legend
+                          verticalAlign="middle"
+                          align="right"
+                          layout="vertical"
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: '12px' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

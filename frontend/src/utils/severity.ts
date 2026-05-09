@@ -39,11 +39,6 @@ export interface SeverityBreakdownPoint {
   value: number;
 }
 
-export interface FileSeveritySummary {
-  path: string;
-  count: number;
-  risk: Severity;
-}
 
 export const normalizeSeverity = (value: string): Severity => {
   if (
@@ -58,25 +53,6 @@ export const normalizeSeverity = (value: string): Severity => {
   }
 
   return 'UNKNOWN';
-};
-
-export const getHighestSeverity = (findings: Finding[]): Severity => {
-  // Logika rangiranja: CRITICAL > HIGH > MEDIUM > LOW > SAFE.
-  // UNKNOWN je varnostna rezerva za neznane ali poškodovane podatke.
-  // Ce datoteka nima nobenega findinga, jo obravnavamo kot SAFE.
-  if (findings.length === 0) {
-    return 'SAFE';
-  }
-
-  return findings.reduce<Severity>((highestSeverity, finding) => {
-    const candidateSeverity = normalizeSeverity(finding.risk);
-
-    if (severityRank[candidateSeverity] > severityRank[highestSeverity]) {
-      return candidateSeverity;
-    }
-
-    return highestSeverity;
-  }, 'UNKNOWN');
 };
 
 export const summarizeFindingsByAttackType = (
@@ -125,38 +101,4 @@ export const summarizeFindingsBySeverity = (
     );
 };
 
-export const summarizeFindingsByFile = (
-  findings: Finding[]
-): FileSeveritySummary[] => {
-  const groupedFindings = findings.reduce<Record<string, Finding[]>>(
-    (accumulator, finding) => {
-      if (!accumulator[finding.file_path]) {
-        accumulator[finding.file_path] = [];
-      }
 
-      accumulator[finding.file_path].push(finding);
-      return accumulator;
-    },
-    {}
-  );
-
-  return Object.entries(groupedFindings)
-    .map(([path, fileFindings]) => ({
-      path,
-      count: fileFindings.length,
-      risk: getHighestSeverity(fileFindings),
-    }))
-    .sort((left, right) => {
-      const countDelta = right.count - left.count;
-      if (countDelta !== 0) {
-        return countDelta;
-      }
-
-      const severityDelta = severityRank[right.risk] - severityRank[left.risk];
-      if (severityDelta !== 0) {
-        return severityDelta;
-      }
-
-      return left.path.localeCompare(right.path);
-    });
-};
