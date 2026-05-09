@@ -143,22 +143,24 @@ class ProjectAnalyzer:
         return RiskLevel.MEDIUM
 
     def calculate_project_score(self, findings):
+        # A project with no findings is perfectly safe, so it gets 100.
         if not findings:
-            return 0
+            return 100
 
-        score = 0
+        score = 100
 
         for finding in findings:
             if finding.risk == RiskLevel.LOW:
-                score += 10
+                score -= 2
             elif finding.risk == RiskLevel.MEDIUM:
-                score += 20
+                score -= 5
             elif finding.risk == RiskLevel.HIGH:
-                score += 35
+                score -= 15
             elif finding.risk == RiskLevel.CRITICAL:
-                score += 50
+                score -= 25
 
-        return min(score, 100)
+        # Ensure the score never drops below 0
+        return max(score, 0)
 
     def build_project_result(self, findings, files):
         findings_by_type = Counter(finding.attack_type.value for finding in findings)

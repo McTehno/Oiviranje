@@ -22,9 +22,6 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onAnalyzeComplete }) =
   // URL repozitorija, če uporabnik izbere GitHub upload
   const [repoUrl, setRepoUrl] = useState('');
 
-  // Privzeta baza, ki jo pošljemo backendu kot database context
-  const [database, setDatabase] = useState('mysql');
-
   // Stanje med izvajanjem analize
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -53,7 +50,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onAnalyzeComplete }) =
 
       const databaseConfig = {
         mode: 'single' as const,
-        default_database: database,
+        default_database: 'mysql',
         folder_databases: {},
       };
 
@@ -216,22 +213,6 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onAnalyzeComplete }) =
               </p>
             </div>
           )}
-
-          {/* Izbira privzete podatkovne baze */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Default Database
-            </label>
-
-            <select
-              value={database}
-              onChange={(event) => setDatabase(event.target.value)}
-              className="block w-full border border-gray-300 rounded-md p-2 text-sm"
-            >
-              <option value="mysql">MySQL</option>
-              <option value="mongodb">MongoDB</option>
-            </select>
-          </div>
 
           {/* Prikaz napake pri uploadu ali analizi */}
           {error && (
