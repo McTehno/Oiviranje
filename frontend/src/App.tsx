@@ -7,7 +7,7 @@ import { GlobalStatistics } from './components/GlobalStatistics';
 import { UploadPanel } from './components/UploadPanel';
 import type { AnalysisResult, FileData } from './types/analysis';
 import { buildFileTree } from './utils/buildFileTree';
-
+import { PdfExportButton } from './components/PdfExportButton';
 const App: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
@@ -66,7 +66,9 @@ const App: React.FC = () => {
 
         {analysisResult && (
           <div className="ml-auto flex items-center gap-2">
+             <PdfExportButton result={analysisResult} />
             {selectedFile && (
+              
               <button
                 type="button"
                 onClick={handleCloseFile}
