@@ -10,7 +10,8 @@ SQL_KEYWORDS = [
     "DELETE",
     "DROP",
     "FROM",
-    "WHERE"
+    "WHERE",
+    "ORDER BY"
 ]
 
 #vzorci, ki predstavljajo uporabniški input.
@@ -56,14 +57,16 @@ CONCAT_PATTERNS = {
     "python": [
         r"\+",
         r"\.format\s*\(",
-        r"f['\"]"
+        r"[fF]['\"]"
     ],
     "javascript": [
         r"\+",
         r"`"
     ],
     "php": [
-        r"\."
+        r"\.",
+        r'"[^"]*\$[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*[^"]*"',
+        r'"\s*.*\{\$[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*\}.*"'
     ]
 }
 

@@ -49,11 +49,13 @@ class SQLDetector(BaseDetector):
 
     def contains_strong_sql_keyword(self, line: str):
         strong_sql_keywords = [
-            "SELECT",
-            "INSERT",
-            "UPDATE",
-            "DELETE",
-            "DROP"
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "DROP",
+        "WHERE",
+        "ORDER BY"
         ]
 
         upper_line = line.upper()
