@@ -49,9 +49,11 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onAnalyzeComplete }) =
       setIsAnalyzing(true);
 
       const databaseConfig = {
-        mode: 'single' as const,
+        mode: 'per_folder' as const,
         default_database: 'mysql',
-        folder_databases: {},
+        folder_databases: {
+          mongo: 'mongodb',
+        },
       };
 
       /*
@@ -106,11 +108,10 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onAnalyzeComplete }) =
                   setRepoUrl('');
                   setError(null);
                 }}
-                className={`border rounded-md py-2 text-sm font-medium ${
-                  uploadMode === 'zip'
+                className={`border rounded-md py-2 text-sm font-medium ${uploadMode === 'zip'
                     ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                     : 'bg-white border-gray-300 text-gray-700'
-                }`}
+                  }`}
               >
                 ZIP file
               </button>
@@ -123,11 +124,10 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onAnalyzeComplete }) =
                   setRepoUrl('');
                   setError(null);
                 }}
-                className={`border rounded-md py-2 text-sm font-medium ${
-                  uploadMode === 'folder'
+                className={`border rounded-md py-2 text-sm font-medium ${uploadMode === 'folder'
                     ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                     : 'bg-white border-gray-300 text-gray-700'
-                }`}
+                  }`}
               >
                 Folder
               </button>
@@ -140,11 +140,10 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onAnalyzeComplete }) =
                   setSelectedFolderFiles([]);
                   setError(null);
                 }}
-                className={`border rounded-md py-2 text-sm font-medium ${
-                  uploadMode === 'github'
+                className={`border rounded-md py-2 text-sm font-medium ${uploadMode === 'github'
                     ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                     : 'bg-white border-gray-300 text-gray-700'
-                }`}
+                  }`}
               >
                 GitHub
               </button>
