@@ -59,6 +59,7 @@ const App: React.FC = () => {
 
         {analysisResult && (
           <div className="ml-4 hidden text-xs text-gray-500 md:block">
+            
             Score: {analysisResult.project_score}/100 · Risk: {analysisResult.overall_risk} · Findings: {analysisResult.total_findings}
           </div>
         )}
