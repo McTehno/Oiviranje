@@ -36,12 +36,23 @@ const FileTreeNode: React.FC<{
   };
 
   // Pri datotekah z ranljivostmi prikažemo majhno oznako s številom findingov
-  const riskBadge =
-    !isFolder && node.findings_count && node.findings_count > 0 ? (
-      <span className="ml-auto text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">
-        {node.findings_count}
-      </span>
-    ) : null;
+  const riskBadge = !isFolder ? (
+  <span
+    className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full ${
+      node.risk === 'SAFE'
+        ? 'bg-green-100 text-green-700'
+        : node.risk === 'HIGH'
+          ? 'bg-orange-100 text-orange-700'
+          : node.risk === 'CRITICAL'
+            ? 'bg-red-100 text-red-700'
+            : node.risk === 'MEDIUM'
+              ? 'bg-yellow-100 text-yellow-700'
+              : 'bg-gray-100 text-gray-700'
+    }`}
+  >
+    {node.risk === 'SAFE' ? 'SAFE' : node.findings_count || 0}
+  </span>
+) : null;
 
   return (
     <div>

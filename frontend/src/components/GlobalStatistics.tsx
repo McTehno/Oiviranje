@@ -69,20 +69,66 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
     [result.findings]
   );
 
-  // `severityBreakdown` iz vseh findingov izdela globalno porazdelitev po resnosti.
-  // Ta rezultat napaja pie chart in pokaže, koliko CRITICAL/HIGH/MEDIUM/LOW/SAFE primerov je v projektu.
-  const severityBreakdown = useMemo(
-    () => summarizeFindingsBySeverity(result.findings),
-    [result.findings]
-  );
+  
+  // `severityBreakdown` prešteje vse datoteke (vključno s SAFE) glede na njihov risk nivo.
+  // Ta rezultat napaja pie chart in pokaže natančno razmerje tveganih in varnih datotek.
+  const severityBreakdown = useMemo(() => {
+    const counts: Record<string, number> = {
+      CRITICAL: 0,
+      HIGH: 0,
+      MEDIUM: 0,
+      LOW: 0,
+      SAFE: 0,
+      UNKNOWN: 0,
+    };
 
-  // `topExploitableFiles` zdruzi findinge po datotekah, za vsako datoteko izracuna
-  // skupno stevilo findingov in najvisjo resnost ter pripravi seznam za globalni pregled.
-  // UI iz tega izriše najbolj izpostavljene datoteke z barvnim progress barom.
-  const topExploitableFiles = useMemo<FileSeveritySummary[]>(
-    () => summarizeFindingsByFile(result.findings).slice(0, 5),
-    [result.findings]
-  );
+    const severityRank: Record<string, number> = {
+      CRITICAL: 5, HIGH: 4, MEDIUM: 3, LOW: 2, SAFE: 1, UNKNOWN: 0
+    };
+
+    result.files.forEach((file) => {
+      const risk = file.risk || 'UNKNOWN';
+      if (counts[risk] !== undefined) {
+        counts[risk] += 1;
+      } else {
+        counts['UNKNOWN'] += 1;
+      }
+    });
+
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      // Filtriramo nivoje, ki nimajo nobene datoteke
+      .filter((entry) => entry.value > 0)
+      // Razvrstimo od najvišjega tveganja do najnižjega
+      .sort((left, right) => severityRank[right.name] - severityRank[left.name]);
+  }, [result.files]);
+
+  // zdaj namesto uporabljanja enega od teh povzetkov, ki jih izračunamo v Pythonu, lahko neposredno uporabimo `summarizeFindingsByFile` za izračun najbolj ranljivih datotek.
+  const topExploitableFiles = useMemo<FileSeveritySummary[]>(() => {
+  const severityRank: Record<string, number> = {
+    CRITICAL: 5, HIGH: 4, MEDIUM: 3, LOW: 2, SAFE: 1, UNKNOWN: 0
+  };
+
+  return result.files
+    .filter((file) => file.findings_count && file.findings_count > 0)
+    .map((file) => ({
+      path: file.path,
+      count: file.findings_count || 0,
+      // Pulls the correct risk directly from the Python backend
+      risk: file.risk as any, 
+    }))
+    .sort((left, right) => {
+      const countDelta = right.count - left.count;
+      if (countDelta !== 0) return countDelta;
+
+      const severityDelta =
+        (severityRank[right.risk] || 0) - (severityRank[left.risk] || 0);
+      if (severityDelta !== 0) return severityDelta;
+
+      return left.path.localeCompare(right.path);
+    })
+    .slice(0, 5);
+}, [result.files]);
 
   const maxFileIssues = Math.max(1, ...topExploitableFiles.map((file) => file.count));
 

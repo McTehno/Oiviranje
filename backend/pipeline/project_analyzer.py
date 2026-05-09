@@ -101,18 +101,28 @@ class ProjectAnalyzer:
         if not findings:
             return RiskLevel.SAFE
 
-        risks = [finding.risk for finding in findings]
+        attack_types = set(finding.attack_type for finding in findings)
+        high_count = sum(1 for finding in findings if finding.risk == RiskLevel.HIGH)
+        critical_count = sum(1 for finding in findings if finding.risk == RiskLevel.CRITICAL)
 
-        if RiskLevel.CRITICAL in risks:
+        if critical_count > 0:
             return RiskLevel.CRITICAL
 
-        if RiskLevel.HIGH in risks:
+        # Če ima datoteka 3 ali več različnih tipov napadov, je zelo tvegana
+        if len(attack_types) >= 3:
+            return RiskLevel.CRITICAL
+
+        # Če ima datoteka veliko HIGH findingov, tudi postane critical
+        if high_count >= 4:
+            return RiskLevel.CRITICAL
+
+        if high_count > 0:
             return RiskLevel.HIGH
 
-        if RiskLevel.MEDIUM in risks:
+        if any(finding.risk == RiskLevel.MEDIUM for finding in findings):
             return RiskLevel.MEDIUM
 
-        if RiskLevel.LOW in risks:
+        if any(finding.risk == RiskLevel.LOW for finding in findings):
             return RiskLevel.LOW
 
         return RiskLevel.SAFE
