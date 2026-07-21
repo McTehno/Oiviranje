@@ -1,8 +1,10 @@
 from languages.python.parser import PythonParser
 from languages.javascript.parser import JavaScriptParser
 from languages.php.parser import PHPParser
+from languages.java.parser import JavaParser
 
 from detectors.injection_detector import InjectionDetector
+from languages.typescript.parser import TypeScriptParser
 from models.result import AnalysisResult
 from models.enums import RiskLevel, AttackType
 
@@ -34,9 +36,12 @@ class Analyzer:
 
         if language == "javascript":
             return JavaScriptParser()
-
+        if language == "typescript":
+            return TypeScriptParser()  # TypeScript lahko obravnavamo kot JavaScript
         if language == "php":
             return PHPParser()
+        if language == "java":
+            return JavaParser()
 
         raise ValueError(f"Unsupported language: {language}")
 

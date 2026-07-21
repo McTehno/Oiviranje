@@ -1,11 +1,14 @@
 from languages.python.taint_tracker import PythonTaintTracker
 from languages.php.taint_tracker import PHPTaintTracker
 from languages.javascript.taint_tracker import JavaScriptTaintTracker
+from languages.java.taint_tracker import JavaTaintTracker
+from languages.typescript.taint_tracker import TypeScriptTaintTracker
 
 from detectors.sql_detector import SQLDetector
 from detectors.hql_detector import HQLDetector
 from detectors.command_detector import CommandDetector
 from detectors.mongodb_detector import MongoDBDetector
+
 
 class InjectionDetector:
     def __init__(self):
@@ -27,6 +30,10 @@ class InjectionDetector:
             return PHPTaintTracker()
         elif language == "javascript":
             return JavaScriptTaintTracker()
+        elif language == "typescript":
+            return TypeScriptTaintTracker()  # TypeScript lahko obravnavamo kot JavaScript
+        elif language == "java":
+            return JavaTaintTracker()
         else:
             raise ValueError(f"Taint tracker ne podpira jezika: {language}")
 

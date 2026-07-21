@@ -1,7 +1,9 @@
 SUPPORTED_LANGUAGES = [
     "python",
     "javascript",
-    "php"
+    "typescript",
+    "php",
+    "java"
 ]
 
 SUPPORTED_DATABASES = [

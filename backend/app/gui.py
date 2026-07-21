@@ -69,7 +69,7 @@ class SecurityAnalyzerApp:
         """Odpre pogovorno okno za izbiro datoteke in prikaže njeno vsebino."""
         filepath = filedialog.askopenfilename(
             title="Select a code file",
-            filetypes=(("All files", "*.*"), ("Python files", "*.py"), ("PHP files", "*.php"), ("JavaScript files", "*.js"))
+            filetypes=(("All files", "*.*"), ("Python files", "*.py"), ("PHP files", "*.php"), ("JavaScript files", "*.js"),  ("Java files", "*.java"))
         )
         
         if filepath:

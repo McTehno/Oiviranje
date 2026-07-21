@@ -4,9 +4,10 @@ EXTENSION_LANGUAGE_MAP = {
     ".py": "python",
     ".js": "javascript",
     ".jsx": "javascript",
-    ".ts": "javascript",
-    ".tsx": "javascript",
+    ".ts": "typescript",
+    ".tsx": "typescript",
     ".php": "php",
+    ".java": "java",
 }
 
 SUPPORTED_EXTENSIONS = set(EXTENSION_LANGUAGE_MAP.keys())
