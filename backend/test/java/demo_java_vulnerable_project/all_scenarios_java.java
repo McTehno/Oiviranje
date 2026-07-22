@@ -1,4 +1,4 @@
-package test.java;
+package test.java.demo_java_vulnerable_project;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

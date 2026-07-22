@@ -33,7 +33,10 @@ class MongoDBDetector:
         description = "MongoDB query is constructed using untrusted user input."
         recommendation = "Validate input and build MongoDB filters using allowed fields and safe operators only."
 
+        risk = RiskLevel.MEDIUM
+
         if uses_mongodb_operator:
+            risk = RiskLevel.HIGH
             description = "MongoDB query uses untrusted input with MongoDB operators."
             recommendation = "Do not allow user-controlled MongoDB operators such as $ne, $where, $regex, or $or."
 
@@ -42,7 +45,7 @@ class MongoDBDetector:
             type=FindingType.MONGODB_INJECTION,
             code=line,
             language=language,
-            risk=RiskLevel.HIGH,
+            risk=risk,
             attack_type=AttackType.MONGODB_INJECTION,
             description=description,
             recommendation=recommendation
