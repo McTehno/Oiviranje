@@ -8,9 +8,20 @@ import { UploadPanel } from './components/UploadPanel';
 import type { AnalysisResult, FileData } from './types/analysis';
 import { buildFileTree } from './utils/buildFileTree';
 import { PdfExportButton } from './components/PdfExportButton';
+import { FindingFilters, type FindingFilterState } from './components/FindingFilters';
+import { severityRank } from './utils/severity';
+const defaultFindingFilters: FindingFilterState = {
+  severity: 'ALL',
+  attackType: 'ALL',
+  language: 'ALL',
+  pathQuery: '',
+  sortBy: 'severity-desc',
+};
+
 const App: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
+  const [findingFilters, setFindingFilters] = useState<FindingFilterState>(defaultFindingFilters);
 
   const fileTree = useMemo(() => {
     if (!analysisResult) {
@@ -20,15 +31,70 @@ const App: React.FC = () => {
     return buildFileTree(analysisResult.files);
   }, [analysisResult]);
 
-  const selectedFileFindings = useMemo(() => {
-    if (!analysisResult || !selectedFile) {
+
+  const filterOptions = useMemo(() => {
+    if (!analysisResult) {
+      return { attackTypes: [], languages: [] };
+    }
+
+    const attackTypes = Array.from(
+      new Set(analysisResult.findings.map((finding) => finding.attack_type).filter(Boolean))
+    ).sort((left, right) => left.localeCompare(right));
+
+    const languages = Array.from(
+      new Set(analysisResult.findings.map((finding) => finding.language).filter(Boolean))
+    ).sort((left, right) => left.localeCompare(right));
+
+    return { attackTypes, languages };
+  }, [analysisResult]);
+
+  const filteredFindings = useMemo(() => {
+    if (!analysisResult) {
       return [];
     }
 
-    return analysisResult.findings.filter(
+    const normalizedPathQuery = findingFilters.pathQuery.trim().toLowerCase();
+
+    return analysisResult.findings
+      .filter((finding) => {
+        const matchesSeverity =
+          findingFilters.severity === 'ALL' || finding.risk === findingFilters.severity;
+        const matchesAttackType =
+          findingFilters.attackType === 'ALL' || finding.attack_type === findingFilters.attackType;
+        const matchesLanguage =
+          findingFilters.language === 'ALL' || finding.language === findingFilters.language;
+        const matchesPath =
+          normalizedPathQuery.length === 0 ||
+          finding.file_path.toLowerCase().includes(normalizedPathQuery);
+
+        return matchesSeverity && matchesAttackType && matchesLanguage && matchesPath;
+      })
+      .sort((left, right) => {
+        switch (findingFilters.sortBy) {
+          case 'severity-asc':
+            return severityRank[left.risk] - severityRank[right.risk] || left.file_path.localeCompare(right.file_path) || left.line - right.line;
+          case 'file-asc':
+            return left.file_path.localeCompare(right.file_path) || left.line - right.line;
+          case 'line-asc':
+            return left.line - right.line || left.file_path.localeCompare(right.file_path);
+          case 'type-asc':
+            return left.attack_type.localeCompare(right.attack_type) || severityRank[right.risk] - severityRank[left.risk] || left.file_path.localeCompare(right.file_path) || left.line - right.line;
+          case 'severity-desc':
+          default:
+            return severityRank[right.risk] - severityRank[left.risk] || left.file_path.localeCompare(right.file_path) || left.line - right.line;
+        }
+      });
+  }, [analysisResult, findingFilters]);
+
+  const selectedFileFindings = useMemo(() => {
+    if (!selectedFile) {
+      return [];
+    }
+
+    return filteredFindings.filter(
       (finding) => finding.file_path === selectedFile.path
     );
-  }, [analysisResult, selectedFile]);
+  }, [filteredFindings, selectedFile]);
 
   const handleSelectFile = (file: FileData) => {
     if (file.type === 'file') {
@@ -42,7 +108,18 @@ const App: React.FC = () => {
     // ni vec potrebnega nobenega ročnega cleanup klica iz frontenda.
     setAnalysisResult(null);
     setSelectedFile(null);
+    setFindingFilters(defaultFindingFilters);
   };
+
+  const selectedFileTotalFindings = useMemo(() => {
+    if (!analysisResult || !selectedFile) {
+      return 0;
+    }
+
+    return analysisResult.findings.filter(
+      (finding) => finding.file_path === selectedFile.path
+    ).length;
+  }, [analysisResult, selectedFile]);
 
   const handleCloseFile = () => {
     setSelectedFile(null);
@@ -102,13 +179,26 @@ const App: React.FC = () => {
           />
 
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <FindingFilters
+              filters={findingFilters}
+              attackTypes={filterOptions.attackTypes}
+              languages={filterOptions.languages}
+              totalCount={analysisResult.findings.length}
+              visibleCount={filteredFindings.length}
+              onChange={setFindingFilters}
+              onReset={() => setFindingFilters(defaultFindingFilters)}
+            />
             {selectedFile ? (
               <>
-                <CodeViewer file={selectedFile} findings={selectedFileFindings} />
+                <CodeViewer
+                  file={selectedFile}
+                  findings={selectedFileFindings}
+                  unfilteredFindingsCount={selectedFileTotalFindings}
+                />
                 <Dashboard selectedFile={selectedFile} findings={selectedFileFindings} />
               </>
             ) : (
-              <GlobalStatistics result={analysisResult} />
+              <GlobalStatistics result={analysisResult} findings={filteredFindings} />
             )}
           </div>
         </div>

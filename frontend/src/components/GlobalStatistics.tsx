@@ -23,15 +23,19 @@ import {
   ShieldCheck,
   Target,
 } from 'lucide-react';
-import type { AnalysisResult } from '../types/analysis';
+import type { AnalysisResult, Finding, Severity } from '../types/analysis';
 import {
   severityColors,
+  normalizeSeverity,
+  severityRank,
   summarizeFindingsByAttackType,
+  summarizeFindingsBySeverity,
   vulnerabilityTypeColors,
 } from '../utils/severity';
 
 interface GlobalStatisticsProps {
   result: AnalysisResult;
+  findings: Finding[];
 }
 
 interface MetricCardProps {
@@ -39,6 +43,12 @@ interface MetricCardProps {
   value: string | number;
   subtitle: string;
   icon: React.ReactNode;
+}
+
+interface FileSeveritySummary {
+  path: string;
+  count: number;
+  risk: Severity;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtitle, icon }) => (
@@ -55,77 +65,62 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtitle, icon })
   </div>
 );
 
-export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) => {
+export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result, findings }) => {
   const isSafeProject = result.total_findings === 0 || result.overall_risk === 'SAFE';
+  const hasActiveFindingFilters = findings.length !== result.findings.length;
 
   // `vulnerabilitiesByType` vzame vse findinge na nivoju celotnega repozitorija,
   // jih zdruzi po `attack_type` in pripravi podatke za globalni vodoravni bar chart.
   // UI ga uporablja za primerjavo najpogostejših napadalnih vzorcev v projektu.
   const vulnerabilitiesByType = useMemo(
-    () => summarizeFindingsByAttackType(result.findings),
-    [result.findings]
+    () => summarizeFindingsByAttackType(findings),
+    [findings]
   );
 
-  
-  // `severityBreakdown` prešteje vse datoteke (vključno s SAFE) glede na njihov risk nivo.
-  // Ta rezultat napaja pie chart in pokaže natančno razmerje tveganih in varnih datotek.
-  const severityBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {
-      CRITICAL: 0,
-      HIGH: 0,
-      MEDIUM: 0,
-      LOW: 0,
-      SAFE: 0,
-      UNKNOWN: 0,
-    };
+  // The repository chart represents findings, not files. A file can contain several
+  // findings of the same severity, and each one must contribute to the displayed total.
+  const severityBreakdown = useMemo(
+    () => summarizeFindingsBySeverity(findings),
+    [findings]
+  );
 
-    const severityRank: Record<string, number> = {
-      CRITICAL: 5, HIGH: 4, MEDIUM: 3, LOW: 2, SAFE: 1, UNKNOWN: 0
-    };
+  // Top files must be derived from the currently visible findings, otherwise
+  // triage filters update the count label but the cards below still show hidden findings.
+  const topExploitableFiles = useMemo<FileSeveritySummary[]>(() => {
+    const filesByPath = new Map<string, FileSeveritySummary>();
 
-    result.files.forEach((file) => {
-      const risk = file.risk || 'UNKNOWN';
-      if (counts[risk] !== undefined) {
-        counts[risk] += 1;
-      } else {
-        counts['UNKNOWN'] += 1;
+    findings.forEach((finding) => {
+      const current = filesByPath.get(finding.file_path);
+      const risk = normalizeSeverity(finding.risk || 'UNKNOWN');
+
+      if (!current) {
+        filesByPath.set(finding.file_path, {
+          path: finding.file_path,
+          count: 1,
+          risk,
+        });
+        return;
+      }
+
+      current.count += 1;
+      if (severityRank[risk] > severityRank[current.risk]) {
+        current.risk = risk;
       }
     });
 
-    return Object.entries(counts)
-      .map(([name, value]) => ({ name, value }))
-      // Filtriramo nivoje, ki nimajo nobene datoteke
-      .filter((entry) => entry.value > 0)
-      // Razvrstimo od najvišjega tveganja do najnižjega
-      .sort((left, right) => severityRank[right.name] - severityRank[left.name]);
-  }, [result.files]);
+    return Array.from(filesByPath.values())
+      .sort((left, right) => {
+        const countDelta = right.count - left.count;
+        if (countDelta !== 0) return countDelta;
 
-  // zdaj namesto uporabljanja enega od teh povzetkov, ki jih izračunamo v Pythonu, lahko neposredno uporabimo `summarizeFindingsByFile` za izračun najbolj ranljivih datotek.
-  const topExploitableFiles = useMemo<FileSeveritySummary[]>(() => {
-  const severityRank: Record<string, number> = {
-    CRITICAL: 5, HIGH: 4, MEDIUM: 3, LOW: 2, SAFE: 1, UNKNOWN: 0
-  };
+        const severityDelta =
+          (severityRank[right.risk] || 0) - (severityRank[left.risk] || 0);
+        if (severityDelta !== 0) return severityDelta;
 
-  return result.files
-    .filter((file) => file.findings_count && file.findings_count > 0)
-    .map((file) => ({
-      path: file.path,
-      count: file.findings_count || 0,
-      // Pulls the correct risk directly from the Python backend
-      risk: file.risk as any, 
-    }))
-    .sort((left, right) => {
-      const countDelta = right.count - left.count;
-      if (countDelta !== 0) return countDelta;
-
-      const severityDelta =
-        (severityRank[right.risk] || 0) - (severityRank[left.risk] || 0);
-      if (severityDelta !== 0) return severityDelta;
-
-      return left.path.localeCompare(right.path);
-    })
-    .slice(0, 5);
-}, [result.files]);
+        return left.path.localeCompare(right.path);
+      })
+      .slice(0, 5);
+  }, [findings]);
 
   const maxFileIssues = Math.max(1, ...topExploitableFiles.map((file) => file.count));
 
@@ -195,7 +190,7 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
 
             <div className="inline-flex items-center gap-3 self-start rounded-full border border-slate-200 bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm">
               <ShieldAlert size={16} className="text-amber-300" />
-              {result.overall_risk} risk · {result.total_findings} findings
+              {result.overall_risk} risk · {findings.length} of {result.total_findings} findings shown
             </div>
           </div>
         </motion.div>
@@ -215,8 +210,8 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
           />
           <MetricCard
             title="Total findings"
-            value={result.total_findings}
-            subtitle="All detected issues across the scan."
+            value={hasActiveFindingFilters ? `${findings.length}/${result.total_findings}` : result.total_findings}
+            subtitle={hasActiveFindingFilters ? 'Findings matching active filters.' : 'All detected issues across the scan.'}
             icon={<FileWarning size={22} />}
           />
           <MetricCard
@@ -240,7 +235,7 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
               </div>
               <div>
                 <h3 className="text-base font-semibold text-slate-900">Vulnerabilities by Type</h3>
-                <p className="text-sm text-slate-500">Global distribution across the repository.</p>
+                <p className="text-sm text-slate-500">Distribution for findings matching the active filters.</p>
               </div>
             </div>
 
@@ -299,7 +294,7 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
               </div>
               <div>
                 <h3 className="text-base font-semibold text-slate-900">Severity Breakdown</h3>
-                <p className="text-sm text-slate-500">Repository-level risk distribution.</p>
+                <p className="text-sm text-slate-500">Distribution for findings matching the active filters.</p>
               </div>
             </div>
 
@@ -349,13 +344,13 @@ export const GlobalStatistics: React.FC<GlobalStatisticsProps> = ({ result }) =>
               </div>
               <div>
                 <h3 className="text-base font-semibold text-slate-900">Top Exploitable Files</h3>
-                <p className="text-sm text-slate-500">Files with the highest number of findings.</p>
+                <p className="text-sm text-slate-500">Files with the highest number of visible findings.</p>
               </div>
             </div>
 
             {topExploitableFiles.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-sm text-slate-500">
-                No vulnerable files were found in the current scan.
+                No vulnerable files match the active filters.
               </div>
             ) : (
               <div className="space-y-4">

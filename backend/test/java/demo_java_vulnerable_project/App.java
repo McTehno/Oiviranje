@@ -1,4 +1,4 @@
-package test.java.demo_java_vulnerable_project;
+/*package test.java.demo_java_vulnerable_project;
 
 import test.java.demo_java_vulnerable_project.db.UserOrm;
 import test.java.demo_java_vulnerable_project.db.UserSQL;
@@ -27,4 +27,45 @@ public class App {
         userMongo.find(request, null);
     }
     
+}
+*/
+package test.java.demo_java_vulnerable_project;
+
+import test.java.demo_java_vulnerable_project.db.UserOrm;
+import test.java.demo_java_vulnerable_project.db.UserSQL;
+import test.java.demo_java_vulnerable_project.mongo.UserMongo;
+import test.java.demo_java_vulnerable_project.system.CommandTools;
+
+import jakarta.persistence.EntityManager;
+import jakarta.servlet.http.HttpServletRequest;
+
+import com.mongodb.client.MongoCollection;
+import org.bson.Document;
+
+import java.sql.Statement;
+
+public class App {
+
+    public void run(
+        HttpServletRequest request,
+        Statement statement,
+        EntityManager entityManager,
+        MongoCollection<Document> users
+    ) throws Exception {
+
+        UserSQL userSQL = new UserSQL();
+        userSQL.findUserById(request, statement);
+        userSQL.findUserByEmail(request, statement);
+
+        UserOrm userOrm = new UserOrm();
+        userOrm.findUserByRole(request, entityManager);
+
+        CommandTools commandTools = new CommandTools();
+        commandTools.pingHost(request);
+        commandTools.showFile(request);
+
+        UserMongo userMongo = new UserMongo();
+        userMongo.findMongoUser(request, users);
+        userMongo.deleteMongoUser(request, users);
+    }
 }

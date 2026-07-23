@@ -46,11 +46,22 @@ class InjectionDetector:
         # Dobimo jezik iz prve vrstice, ali pa privzeto python
         language = code_lines[0].language if code_lines else "python"
         
+        print("DETECTED LANGUAGE:", repr(language))
+
         # Ustvarimo pravega taint trackerja za ta jezik
         taint_tracker = self.get_taint_tracker(language)
         
+        print("TAINT TRACKER:", type(taint_tracker).__name__)
         # Pridobimo umazane (tainted) spremenljivke in MongoDB operator spremenljivke za vsako vrstico
         taint_by_line, operator_by_line = taint_tracker.track(code_lines)
+
+        for code_line in code_lines:
+            print(
+                "TAINT DEBUG:",
+                code_line.number,
+                repr(code_line.content),
+                taint_by_line.get(code_line.number, set())
+            )
 
         for code_line in code_lines:
             tainted_variables = taint_by_line.get(code_line.number, set())

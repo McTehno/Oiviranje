@@ -7,9 +7,10 @@ import { VulnerabilityWidget } from './VulnerabilityWidget';
 interface CodeViewerProps {
   file: FileData | null;
   findings: Finding[];
+  unfilteredFindingsCount?: number;
 }
 
-export const CodeViewer: React.FC<CodeViewerProps> = ({ file, findings }) => {
+export const CodeViewer: React.FC<CodeViewerProps> = ({ file, findings, unfilteredFindingsCount = findings.length }) => {
   // Če uporabnik še ni izbral datoteke, prikažemo prazen začetni prikaz
   if (!file) {
     return (
@@ -45,9 +46,15 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ file, findings }) => {
         <span>{file.path}</span>
 
         <span className="text-xs text-gray-400">
-          {file.language} · {file.database} · {findings.length} finding{findings.length === 1 ? '' : 's'}
+          {file.language} · {file.database} · {findings.length} of {unfilteredFindingsCount} finding{unfilteredFindingsCount === 1 ? '' : 's'} shown
         </span>
       </div>
+
+      {unfilteredFindingsCount > 0 && findings.length === 0 && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          No findings in this file match the active filters. Adjust filters above to show hidden findings.
+        </div>
+      )}
 
       {/* Prikaz kode s syntax highlightingom in številkami vrstic */}
       <div className="flex-1 overflow-auto bg-[#fafafa]">

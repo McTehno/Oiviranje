@@ -20,7 +20,7 @@ export const vulnerabilityTypeColors = [
   '#EF4444',
 ];
 
-const severityRank: Record<Severity, number> = {
+export const severityRank: Record<Severity, number> = {
   CRITICAL: 5,
   HIGH: 4,
   MEDIUM: 3,
@@ -28,6 +28,15 @@ const severityRank: Record<Severity, number> = {
   SAFE: 1,
   UNKNOWN: 0,
 };
+
+export const severityOptions: Severity[] = [
+  'CRITICAL',
+  'HIGH',
+  'MEDIUM',
+  'LOW',
+  'SAFE',
+  'UNKNOWN',
+];
 
 export interface VulnerabilityTypePoint {
   name: string;
